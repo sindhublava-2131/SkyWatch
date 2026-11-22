@@ -17,8 +17,12 @@ PROFILE="${1:-${SKYWATCH_PROFILE:-modern}}"
 INPUT_CLEAN="${2:-data/clean/air_quality}"
 INPUT_WEATHER="${3:-data/normalized/weather}"
 OUTPUT_PUBLISHED="${4:-output/published}"
-shift 4 2>/dev/null || true
-EXTRA_FLAGS="$*"
+if [ "$#" -ge 4 ]; then
+    shift 4
+    EXTRA_FLAGS="$*"
+else
+    EXTRA_FLAGS=""
+fi
 
 # 3. Configure logging directory and error trap
 LOG_DIR="$PROJECT_ROOT/data/logs"
