@@ -92,9 +92,12 @@ def compute_weather_correlation(
         "join_hour",
         date_trunc("hour", to_timestamp(col("bucket_start_utc"))),
     )
-    df_w = df_weather.withColumn(
-        "join_hour",
-        date_trunc("hour", to_timestamp(col("measurement_time_utc"))),
+    df_w = (
+        df_weather.withColumn(
+            "join_hour",
+            date_trunc("hour", to_timestamp(col("measurement_time_utc"))),
+        )
+        .dropDuplicates(["join_hour"])
     )
 
     df_joined = df_air.join(df_w, on="join_hour", how="inner")
