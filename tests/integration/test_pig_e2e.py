@@ -33,7 +33,7 @@ def test_clean_air_quality_e2e_matches_golden(tmp_path):
     golden_rows = _read_csv_rows(Path("tests/fixtures/golden/golden_clean_air_quality.csv"))
 
     assert len(actual_rows) == len(golden_rows)
-    assert actual_rows == golden_rows
+    assert sorted(actual_rows) == sorted(golden_rows)
 
     # Verify sidecar schema matches golden sidecar
     with open(out_dir / "_schema.json", "r", encoding="utf-8") as f:

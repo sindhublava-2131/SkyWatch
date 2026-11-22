@@ -44,7 +44,7 @@ daily_stats = FOREACH grouped_records GENERATE
     group.parameter AS parameter:chararray,
     group.date_dt AS date:chararray,
     COUNT(extracted.value) AS reading_count:long,
-    ROUND_TO(AVG(extracted.value), 4) AS average_value:double,
+    ROUND(AVG(extracted.value) * 10000.0) / 10000.0 AS average_value:double,
     MIN(extracted.value) AS minimum_value:double,
     MAX(extracted.value) AS maximum_value:double;
 

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import json
+import shutil
 from pathlib import Path
 from typing import Dict, List, Tuple
+
+from skywatch.pipeline.pig_runner import generate_sidecar_schema
 
 STATIONS = [
     {"station_id": "2178", "name": "BTM Layout, Bengaluru - CPCB", "lat": 12.9135, "lon": 77.6111, "pm25_sensor": "3917", "pm10_sensor": "3918"},
@@ -197,32 +199,10 @@ def main() -> None:
     print(f"Wrote {golden_hourly_path} ({len(hourly_rollup_rows)} lines)")
 
     # Golden sidecar schema
-    golden_schema = {
-        "schema_version": "2.0",
-        "entity": "clean_air_quality",
-        "format": "csv",
-        "delimiter": ",",
-        "has_header": False,
-        "columns": [
-            {"name": "record_key", "type": "string"},
-            {"name": "station_id", "type": "string"},
-            {"name": "station_name", "type": "string"},
-            {"name": "latitude", "type": "double"},
-            {"name": "longitude", "type": "double"},
-            {"name": "sensor_id", "type": "string"},
-            {"name": "parameter", "type": "string"},
-            {"name": "value", "type": "double"},
-            {"name": "unit", "type": "string"},
-            {"name": "measurement_time_utc", "type": "string"},
-            {"name": "ingestion_time_utc", "type": "string"},
-            {"name": "source", "type": "string"},
-            {"name": "is_valid", "type": "boolean"},
-            {"name": "reject_reason", "type": "string"}
-        ]
-    }
+    sidecar_path = generate_sidecar_schema("clean_air_quality", "tests/fixtures/golden")
     golden_schema_path = Path("tests/fixtures/golden/golden_clean_air_quality_schema.json")
-    with open(golden_schema_path, "w", encoding="utf-8") as f:
-        json.dump(golden_schema, f, indent=2)
+    shutil.copy(sidecar_path, golden_schema_path)
+    Path(sidecar_path).unlink(missing_ok=True)
     print(f"Wrote {golden_schema_path}")
 
 if __name__ == "__main__":

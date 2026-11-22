@@ -16,8 +16,21 @@ cd "$PROJECT_ROOT"
 RUN_DATE="${5:-$(date -u +%Y-%m-%d)}"
 SCRIPT_NAME="${1:-clean_air_quality.pig}"
 PROFILE="${2:-${SKYWATCH_PROFILE:-modern}}"
-INPUT_PATH="${3:-data/normalized/air_quality/ingest_dt=${RUN_DATE}}"
-OUTPUT_PATH="${4:-data/clean/air_quality/event_dt=${RUN_DATE}}"
+
+case "$SCRIPT_NAME" in
+    *station_stats*)
+        INPUT_PATH="${3:-data/clean/air_quality/event_dt=${RUN_DATE}}"
+        OUTPUT_PATH="${4:-data/analytics/station_stats/event_dt=${RUN_DATE}}"
+        ;;
+    *hourly_rollup*)
+        INPUT_PATH="${3:-data/clean/air_quality/event_dt=${RUN_DATE}}"
+        OUTPUT_PATH="${4:-data/analytics/hourly_rollup/event_dt=${RUN_DATE}}"
+        ;;
+    *)
+        INPUT_PATH="${3:-data/normalized/air_quality/ingest_dt=${RUN_DATE}}"
+        OUTPUT_PATH="${4:-data/clean/air_quality/event_dt=${RUN_DATE}}"
+        ;;
+esac
 
 # 3. Configure logging directory and error trap
 LOG_DIR="$PROJECT_ROOT/data/logs"

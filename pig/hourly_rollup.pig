@@ -44,7 +44,7 @@ hourly_stats = FOREACH grouped_hours GENERATE
     group.parameter AS parameter:chararray,
     group.bucket_start_utc AS bucket_start_utc:chararray,
     COUNT(extracted_hours.value) AS reading_count:long,
-    ROUND_TO(AVG(extracted_hours.value), 4) AS average_value:double,
+    ROUND(AVG(extracted_hours.value) * 10000.0) / 10000.0 AS average_value:double,
     MIN(extracted_hours.value) AS minimum_value:double,
     MAX(extracted_hours.value) AS maximum_value:double;
 

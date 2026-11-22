@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 
 from skywatch.pipeline.pig_runner import (
+    _attach_sidecar,
     _pre_clear_output,
+    _resolve_input_files,
     _run_standalone_fallback,
     generate_sidecar_schema,
     is_pig_available,
@@ -154,3 +157,64 @@ def test_run_standalone_fallback_hourly_rollup(tmp_path):
     assert result.records_processed == 720  # 5 stations * 2 pollutants * 3 days * 24 hours
     assert (rollup_dir / "part-m-00000").is_file()
     assert (rollup_dir / "_schema.json").is_file()
+
+
+def test_pre_clear_output_safety():
+    """Test safety guards in _pre_clear_output refusing dangerous paths."""
+    with pytest.raises(ValueError, match="Cannot pre-clear empty"):
+        _pre_clear_output("")
+    with pytest.raises(ValueError, match="Cannot pre-clear empty"):
+        _pre_clear_output("   ")
+    with pytest.raises(ValueError, match="Refusing to pre-clear dangerous directory"):
+        _pre_clear_output(".")
+    with pytest.raises(ValueError, match="Refusing to pre-clear dangerous directory"):
+        _pre_clear_output(str(Path.cwd()))
+    with pytest.raises(ValueError, match="Refusing to pre-clear dangerous directory"):
+        _pre_clear_output(str(Path.cwd().anchor))
+
+
+def test_run_pig_script_absolute_path_traversal():
+    """Test that arbitrary external absolute paths are rejected."""
+    external_path = "C:\\Windows\\System32" if os.name == "nt" else "/etc/data"
+    with pytest.raises(ValueError, match="OUTPUT path must resolve within repository root or temp directory"):
+        run_pig_script(
+            script_path="pig/clean_air_quality.pig",
+            params={"INPUT": "data/sample/sample_air_quality.csv", "OUTPUT": external_path},
+        )
+
+
+def test_resolve_input_files_glob_directories(tmp_path):
+    """Test that _resolve_input_files properly handles partition subdirectories matched by glob."""
+    part1 = tmp_path / "part_1"
+    part1.mkdir()
+    (part1 / "data1.csv").write_text("a,b,c", encoding="utf-8")
+    part2 = tmp_path / "part_2"
+    part2.mkdir()
+    (part2 / "data2.csv").write_text("d,e,f", encoding="utf-8")
+
+    resolved = _resolve_input_files(str(tmp_path / "part_*"))
+    assert len(resolved) == 2
+    filenames = {p.name for p in resolved}
+    assert filenames == {"data1.csv", "data2.csv"}
+
+
+def test_attach_sidecar_variations(tmp_path):
+    """Test substring matching and entity override in _attach_sidecar."""
+    out_dir = tmp_path / "custom_out"
+    out_dir.mkdir()
+
+    # Substring matching
+    schema_path = _attach_sidecar("custom_clean_air_quality_v2.pig", str(out_dir))
+    assert schema_path is not None
+    assert Path(schema_path).is_file()
+
+    # Explicit entity override
+    schema_path_override = _attach_sidecar("unknown_script.pig", str(out_dir), entity_override="station_stats")
+    assert schema_path_override is not None
+    with open(schema_path_override, "r", encoding="utf-8") as f:
+        meta = json.load(f)
+    assert meta["entity"] == "station_stats"
+
+    # Unknown script without override returns None
+    assert _attach_sidecar("unknown_script.pig", str(out_dir)) is None
+

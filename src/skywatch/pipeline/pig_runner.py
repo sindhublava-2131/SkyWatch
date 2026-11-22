@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -94,30 +95,48 @@ def generate_sidecar_schema(
 
 def _pre_clear_output(output_dir: str) -> None:
     """Pre-clear target output directory to prevent MapReduce FileAlreadyExistsException."""
-    path = Path(output_dir)
+    if not output_dir or not output_dir.strip():
+        raise ValueError("Cannot pre-clear empty output directory path.")
+
+    path = Path(output_dir).resolve()
+    cwd = Path.cwd().resolve()
+    temp_root = Path(tempfile.gettempdir()).resolve()
+
+    if path == cwd or path == Path(path.anchor) or path == temp_root:
+        raise ValueError(f"Refusing to pre-clear dangerous directory: '{output_dir}'")
+
     if path.exists():
         if path.is_dir():
             shutil.rmtree(path)
         else:
             os.remove(path)
-        logger.info("Pre-cleared existing output directory", extra={"output_dir": output_dir})
+        logger.info("Pre-cleared existing output directory", extra={"output_dir": str(path)})
 
 
 def _attach_sidecar(
     script_name: str,
     output_dir: str,
     config_path: Optional[str] = None,
+    entity_override: Optional[str] = None,
 ) -> Optional[str]:
-    """Resolve entity from script name and attach sidecar _schema.json metadata."""
+    """Resolve entity from script name or override and attach sidecar _schema.json metadata."""
+    if entity_override:
+        return generate_sidecar_schema(entity_override, output_dir, config_path)
+
     script_base = Path(script_name).name
     script_to_entity = {
-        "clean_air_quality.pig": "clean_air_quality",
-        "station_stats.pig": "station_stats",
-        "hourly_rollup.pig": "hourly_rollup",
+        "clean_air_quality": "clean_air_quality",
+        "station_stats": "station_stats",
+        "hourly_rollup": "hourly_rollup",
     }
-    entity = script_to_entity.get(script_base)
-    if entity:
-        return generate_sidecar_schema(entity, output_dir, config_path)
+    for k, v in script_to_entity.items():
+        if k in script_base:
+            return generate_sidecar_schema(v, output_dir, config_path)
+
+    logger.warning(
+        "No canonical entity matching script name; skipping sidecar _schema.json",
+        extra={"script": script_name},
+    )
     return None
 
 
@@ -135,8 +154,16 @@ def _resolve_input_files(input_param: str) -> List[Path]:
         if files:
             return files
 
-    # Fallback to glob expansion
-    expanded = [Path(p) for p in sorted(glob.glob(input_param)) if Path(p).is_file()]
+    # Fallback to glob expansion supporting file and directory matches
+    expanded: List[Path] = []
+    for p in sorted(glob.glob(input_param)):
+        pp = Path(p)
+        if pp.is_file() and not pp.name.startswith((".", "_")):
+            expanded.append(pp)
+        elif pp.is_dir():
+            for sub in sorted(pp.iterdir()):
+                if sub.is_file() and not sub.name.startswith((".", "_")):
+                    expanded.append(sub)
     if expanded:
         return expanded
 
@@ -147,6 +174,7 @@ def _run_standalone_fallback(
     script_path: str,
     params: Dict[str, str],
     config_path: Optional[str] = None,
+    entity_override: Optional[str] = None,
 ) -> RunResult:
     """Execute relational Pig ETL operations in pure Python producing golden-compatible output."""
     start_time = time.monotonic()
@@ -172,7 +200,7 @@ def _run_standalone_fallback(
 
     processed_count = 0
 
-    if script_name == "clean_air_quality.pig":
+    if "clean_air_quality" in script_name:
         # Filter: record_key != 'record_key' AND is_valid == true AND value IS NOT NULL AND 0.0 <= value <= 1000.0
         # Distinct deduplication
         seen: Set[Tuple[str, ...]] = set()
@@ -206,7 +234,7 @@ def _run_standalone_fallback(
             writer.writerows(clean_rows)
         processed_count = len(clean_rows)
 
-    elif script_name == "station_stats.pig":
+    elif "station_stats" in script_name:
         # Group clean records by (station_id, parameter, date_dt) where date_dt = measurement_time_utc[:10]
         # Aggregations: count, round(avg, 4), min, max
         groups: Dict[Tuple[str, str, str], List[float]] = {}
@@ -240,7 +268,7 @@ def _run_standalone_fallback(
             writer.writerows(stats_rows)
         processed_count = len(stats_rows)
 
-    elif script_name == "hourly_rollup.pig":
+    elif "hourly_rollup" in script_name:
         # Group clean records by (station_id, parameter, bucket_start_utc) where bucket_start_utc = measurement_time_utc[:13] + ":00:00Z"
         # Aggregations: count, round(avg, 4), min, max
         groups_h: Dict[Tuple[str, str, str], List[float]] = {}
@@ -278,7 +306,7 @@ def _run_standalone_fallback(
 
     # Write MapReduce success marker and sidecar schema
     (out_dir / "_SUCCESS").touch()
-    _attach_sidecar(script_name, output_param, config_path)
+    _attach_sidecar(script_name, output_param, config_path, entity_override=entity_override)
 
     duration = time.monotonic() - start_time
     logger.info(
@@ -311,6 +339,7 @@ def run_pig_script(
     offline_fallback: bool = True,
     run_id: Optional[str] = None,
     config_path: Optional[str] = None,
+    entity: Optional[str] = None,
 ) -> RunResult:
     """Execute an Apache Pig script with parameter binding and standalone simulation fallback."""
     with run_context(run_id) as active_run_id:
@@ -322,9 +351,28 @@ def run_pig_script(
         if not output_dir:
             raise ValueError("Parameter 'OUTPUT' is required.")
 
-        # Guard against path traversal in OUTPUT parameter (WR-18 / security gate)
+        # Guard against path traversal in OUTPUT parameter (CR-02 & WR-18 / security gate)
         if ".." in Path(output_dir).parts:
             raise ValueError(f"Path traversal detected in OUTPUT parameter: '{output_dir}'")
+
+        resolved_out = Path(output_dir).resolve()
+        repo_root = Path.cwd().resolve()
+        temp_root = Path(tempfile.gettempdir()).resolve()
+        is_sub_repo = False
+        is_sub_temp = False
+        try:
+            resolved_out.relative_to(repo_root)
+            is_sub_repo = True
+        except ValueError:
+            pass
+        try:
+            resolved_out.relative_to(temp_root)
+            is_sub_temp = True
+        except ValueError:
+            pass
+
+        if not (is_sub_repo or is_sub_temp):
+            raise ValueError(f"OUTPUT path must resolve within repository root or temp directory: '{output_dir}'")
 
         _pre_clear_output(output_dir)
 
@@ -338,7 +386,7 @@ def run_pig_script(
                     "Pig executable not found on host; executing via standalone Python fallback",
                     extra={"script": script.name, "run_id": active_run_id},
                 )
-                return _run_standalone_fallback(script_path, params, config_path)
+                return _run_standalone_fallback(script_path, params, config_path, entity_override=entity)
             raise RuntimeError(
                 f"Apache Pig executable not found (PIG_HOME='{active_profile.pig_home}') and offline_fallback is disabled."
             )
@@ -346,9 +394,12 @@ def run_pig_script(
         # Build command array without shell=True for execution safety
         pig_bin = "pig.cmd" if os.name == "nt" else "pig"
         if active_profile.pig_home:
-            bin_path = Path(active_profile.pig_home) / "bin" / pig_bin
-            if bin_path.is_file():
-                pig_bin = str(bin_path)
+            candidates = ["pig.cmd", "pig.exe", "pig"] if os.name == "nt" else ["pig"]
+            for candidate in candidates:
+                bin_path = Path(active_profile.pig_home) / "bin" / candidate
+                if bin_path.is_file():
+                    pig_bin = str(bin_path)
+                    break
 
         cmd: List[str] = [pig_bin, "-x", mode]
         for key in sorted(params.keys()):
@@ -391,7 +442,7 @@ def run_pig_script(
 
         duration = time.monotonic() - start_time
         if proc.returncode == 0:
-            _attach_sidecar(script.name, output_dir, config_path)
+            _attach_sidecar(script.name, output_dir, config_path, entity_override=entity)
             # Count records processed if part files exist
             rec_count = 0
             for part in Path(output_dir).glob("part*"):
@@ -433,6 +484,7 @@ def main() -> None:
     parser.add_argument("--run-date", default=time.strftime("%Y-%m-%d"), help="Execution date partition")
     parser.add_argument("--profile", default=os.environ.get("SKYWATCH_PROFILE", "modern"), help="Profile name")
     parser.add_argument("--mode", default="local", help="Execution mode (local or mapreduce)")
+    parser.add_argument("--entity", default=None, help="Explicit canonical entity name for sidecar schema")
     parser.add_argument("--no-fallback", action="store_true", help="Disable offline Python fallback")
 
     args = parser.parse_args()
@@ -450,6 +502,7 @@ def main() -> None:
         profile=prof,
         mode=args.mode,
         offline_fallback=not args.no_fallback,
+        entity=args.entity,
     )
 
     if not result.success:
