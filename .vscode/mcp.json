@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "graphicle": {
+      "command": "graphicle",
+      "args": [
+        "mcp",
+        "--project",
+        "${workspaceFolder}",
+        "--allow-learning"
+      ],
+      "type": "stdio"
+    }
+  }
+}
