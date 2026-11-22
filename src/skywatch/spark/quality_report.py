@@ -5,7 +5,13 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from pyspark.sql import DataFrame, SparkSession
+try:
+    from pyspark.sql import DataFrame, SparkSession
+    PYSPARK_AVAILABLE = True
+except ImportError:
+    PYSPARK_AVAILABLE = False
+    DataFrame = Any  # type: ignore[misc,assignment]
+    SparkSession = Any  # type: ignore[misc,assignment]
 
 
 def build_quality_report_records(

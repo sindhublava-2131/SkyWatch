@@ -2,13 +2,19 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
-from pyspark.sql import DataFrame, Window
-from pyspark.sql.functions import avg, col, count, dense_rank, lit
-from pyspark.sql.functions import max as spark_max
-from pyspark.sql.functions import min as spark_min
-from pyspark.sql.functions import round as spark_round
+try:
+    from pyspark.sql import DataFrame, Window
+    from pyspark.sql.functions import avg, col, count, dense_rank, lit
+    from pyspark.sql.functions import max as spark_max
+    from pyspark.sql.functions import min as spark_min
+    from pyspark.sql.functions import round as spark_round
+    PYSPARK_AVAILABLE = True
+except ImportError:
+    PYSPARK_AVAILABLE = False
+    DataFrame = Any  # type: ignore[misc,assignment]
+    Window = Any  # type: ignore[misc,assignment]
 
 
 def compute_station_statistics(

@@ -2,22 +2,27 @@
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import (
-    col,
-    corr,
-    count,
-    date_trunc,
-    isnan,
-    lit,
-    to_timestamp,
-    when,
-)
-from pyspark.sql.functions import (
-    round as spark_round,
-)
+try:
+    from pyspark.sql import DataFrame
+    from pyspark.sql.functions import (
+        col,
+        corr,
+        count,
+        date_trunc,
+        isnan,
+        lit,
+        to_timestamp,
+        when,
+    )
+    from pyspark.sql.functions import (
+        round as spark_round,
+    )
+    PYSPARK_AVAILABLE = True
+except ImportError:
+    PYSPARK_AVAILABLE = False
+    DataFrame = Any  # type: ignore[misc,assignment]
 
 
 def calculate_pearson_r(

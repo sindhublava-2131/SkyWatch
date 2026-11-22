@@ -7,7 +7,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pyspark.sql import DataFrame
+try:
+    from pyspark.sql import DataFrame
+    PYSPARK_AVAILABLE = True
+except ImportError:
+    PYSPARK_AVAILABLE = False
+    DataFrame = Any  # type: ignore[misc,assignment]
 
 from skywatch.analytics_core.cpcb import classify, load_breakpoints, subindex
 

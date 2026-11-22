@@ -1,24 +1,30 @@
 """Spark analytics job: Hourly and daily temporal trend analysis and peak-hour detection (SPK-02)."""
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Any, Tuple
 
-from pyspark.sql import DataFrame, Window
-from pyspark.sql.functions import (
-    avg,
-    col,
-    count,
-    date_format,
-    hour,
-    to_timestamp,
-    when,
-)
-from pyspark.sql.functions import (
-    max as spark_max,
-)
-from pyspark.sql.functions import (
-    round as spark_round,
-)
+try:
+    from pyspark.sql import DataFrame, Window
+    from pyspark.sql.functions import (
+        avg,
+        col,
+        count,
+        date_format,
+        hour,
+        to_timestamp,
+        when,
+    )
+    from pyspark.sql.functions import (
+        max as spark_max,
+    )
+    from pyspark.sql.functions import (
+        round as spark_round,
+    )
+    PYSPARK_AVAILABLE = True
+except ImportError:
+    PYSPARK_AVAILABLE = False
+    DataFrame = Any  # type: ignore[misc,assignment]
+    Window = Any  # type: ignore[misc,assignment]
 
 
 def compute_temporal_trends(df_clean: DataFrame) -> Tuple[DataFrame, DataFrame]:
