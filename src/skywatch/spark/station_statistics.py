@@ -50,10 +50,9 @@ def compute_station_statistics(
         spark_round(spark_max("value"), 2).alias("maximum_value"),
     )
 
-    # Ranking window: per parameter, order by average_value DESC, station_id ASC
+    # Ranking window: per parameter, order by average_value DESC
     ranking_window = Window.partitionBy("parameter").orderBy(
         col("average_value").desc(),
-        col("station_id").asc(),
     )
 
     df_ranked = df_stats.withColumn(
@@ -64,7 +63,7 @@ def compute_station_statistics(
         timestamp_lit,
     )
 
-    # Reorder columns matching canonical schema
+    # Reorder columns matching canonical schema and apply deterministic tie-breaking sort
     return df_ranked.select(
         "station_id",
         "station_name",
@@ -75,4 +74,4 @@ def compute_station_statistics(
         "maximum_value",
         "pollution_rank",
         "generated_at_utc",
-    )
+    ).orderBy("parameter", "pollution_rank", "station_id")
