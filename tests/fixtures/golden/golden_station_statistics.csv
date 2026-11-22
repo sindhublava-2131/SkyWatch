@@ -1,0 +1,11 @@
+station_id,station_name,parameter,reading_count,average_value,minimum_value,maximum_value,pollution_rank,generated_at_utc
+2182,"Jayanagar, Bengaluru - CPCB",pm10,72,146.65,106.0,187.3,1,2026-11-23T00:00:00Z
+2181,"Hebbal, Bengaluru - CPCB",pm10,72,132.65,92.0,173.3,2,2026-11-23T00:00:00Z
+2180,"Peenya, Bengaluru - CPCB",pm10,72,118.65,78.0,159.3,3,2026-11-23T00:00:00Z
+2179,"Silk Board, Bengaluru - CPCB",pm10,72,104.65,64.0,145.3,4,2026-11-23T00:00:00Z
+2178,"BTM Layout, Bengaluru - CPCB",pm10,72,90.65,50.0,131.3,5,2026-11-23T00:00:00Z
+2179,"Silk Board, Bengaluru - CPCB",pm25,77,133.91,32.5,1250.0,1,2026-11-23T00:00:00Z
+2182,"Jayanagar, Bengaluru - CPCB",pm25,72,78.9,55.0,102.8,2,2026-11-23T00:00:00Z
+2181,"Hebbal, Bengaluru - CPCB",pm25,72,71.4,47.5,95.3,3,2026-11-23T00:00:00Z
+2180,"Peenya, Bengaluru - CPCB",pm25,77,59.39,-5.5,87.8,4,2026-11-23T00:00:00Z
+2178,"BTM Layout, Bengaluru - CPCB",pm25,87,47.74,25.0,72.8,5,2026-11-23T00:00:00Z

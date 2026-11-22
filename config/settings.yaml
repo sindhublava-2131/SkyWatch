@@ -1,0 +1,43 @@
+version: "2.0"
+
+freshness:
+  fresh_hours: 3.0
+  stale_hours: 24.0
+
+alerts:
+  health_categories:
+    poor:
+      min_aqi: 201.0
+      max_aqi: 300.0
+      severity: "WARNING"
+      alert_type: "category_poor"
+    very_poor:
+      min_aqi: 301.0
+      max_aqi: 400.0
+      severity: "CRITICAL"
+      alert_type: "category_very_poor"
+    severe:
+      min_aqi: 401.0
+      max_aqi: 500.0
+      severity: "EMERGENCY"
+      alert_type: "category_severe"
+  telemetry:
+    stale_station:
+      severity: "WARNING"
+      alert_type: "stale_station"
+    offline_station:
+      severity: "CRITICAL"
+      alert_type: "offline_station"
+
+spike_detection:
+  rolling_window_hours: 24
+  min_history_hours: 6
+  multiplier_threshold: 3.0
+  severity: "WARNING"
+  alert_type: "spike_detected"
+
+benchmark:
+  scales:
+    "1x": 50000
+    "10x": 500000
+    "100x": 5000000

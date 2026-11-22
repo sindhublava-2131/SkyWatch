@@ -1,0 +1,4 @@
+run_id,stage,accepted_count,rejected_count,duplicate_count,reason_counts_json,generated_at_utc
+golden_run_01,ingestion,760,0,0,{},2026-11-23T00:00:00Z
+golden_run_01,pig_etl,745,15,0,"{""INVALID_FILTERED"": 15}",2026-11-23T00:00:00Z
+golden_run_01,spark_analytics,360,0,0,{},2026-11-23T00:00:00Z
