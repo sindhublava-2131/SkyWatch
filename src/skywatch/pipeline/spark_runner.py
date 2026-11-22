@@ -523,7 +523,7 @@ def run_spark_analytics(
 
         # 1. Ingest clean air quality and weather
         df_clean = read_clean_dataset(spark, str(clean_path), "clean_air_quality")
-        df_weather = spark.read.format("csv").option("header", "true").option("inferSchema", "true").load(str(weather_path))
+        df_weather = read_clean_dataset(spark, str(weather_path), "weather")
 
         results: List[SparkRunResult] = []
 
