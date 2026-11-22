@@ -63,6 +63,19 @@ def test_load_profile_lab_defaults(tmp_path):
     assert config.java_home_spark == "/opt/jdk8"
 
 
+def test_load_profile_prioritizes_file_over_ambient_env(tmp_path):
+    # CR-05: Ambient env vars should not overwrite values when a profile is explicitly loaded
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir()
+    (profiles_dir / "lab.env").write_text(
+        'HADOOP_HOME="/opt/lab-hadoop"\n',
+        encoding="utf-8",
+    )
+    with mock.patch.dict(os.environ, {"HADOOP_HOME": "/opt/ambient-hadoop"}):
+        config = load_profile("lab", profiles_dir=str(profiles_dir))
+        assert config.hadoop_home == "/opt/lab-hadoop"
+
+
 def test_validate_environment_nonexistent_paths():
     config = ProfileConfig(
         profile_name="modern",

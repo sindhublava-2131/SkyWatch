@@ -12,7 +12,7 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from skywatch.pipeline.logging import get_logger
 
@@ -37,7 +37,7 @@ def save_raw_response(
     http_status: int,
     run_id: str,
     base_dir: str = "data/raw",
-    ingest_dt: str | None = None,
+    ingest_dt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Atomically save raw API response to disk and append an entry to _manifest.csv."""
     now_utc = datetime.now(timezone.utc)
@@ -66,16 +66,22 @@ def save_raw_response(
     partition_dir = Path(base_dir) / source / f"ingest_dt={partition_dt}"
     partition_dir.mkdir(parents=True, exist_ok=True)
 
-    target_file = partition_dir / f"{source}_{run_id}.json"
+    # Unique per-payload filename preventing multi-station overwrites within the same run (CR-02)
+    target_file = partition_dir / f"{source}_{run_id}_{sha256_hash[:8]}.json"
 
-    # Atomic write to temporary file then replace
-    with tempfile.NamedTemporaryFile("wb", dir=str(partition_dir), delete=False) as tf:
+    # Atomic write to temporary file with cleanup on failure (WR-03)
+    tf = tempfile.NamedTemporaryFile("wb", dir=str(partition_dir), delete=False)
+    temp_path = tf.name
+    try:
         tf.write(content_bytes)
         tf.flush()
         os.fsync(tf.fileno())
-        temp_path = tf.name
-
-    os.replace(temp_path, str(target_file))
+        tf.close()
+        os.replace(temp_path, str(target_file))
+    except Exception:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
 
     manifest_path = Path(base_dir) / "_manifest.csv"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

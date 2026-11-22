@@ -92,3 +92,34 @@ def test_validate_air_quality_record_composite():
     # Spike value test
     spike_rec = dict(valid_rec, value=1500.0)
     assert validate_air_quality_record(spike_rec, reference_time=now).is_valid is False
+
+
+def test_check_timestamp_naive_iso_does_not_crash():
+    # CR-04: naive ISO format without Z or offset should be safely handled as UTC
+    now = datetime(2026, 11, 22, 12, 0, 0, tzinfo=timezone.utc)
+    res = check_timestamp("2026-11-22T11:30:00", reference_time=now)
+    assert res.is_valid is True
+
+
+def test_validate_weather_record():
+    # WR-15: weather validation
+    now = datetime(2026, 11, 22, 12, 0, 0, tzinfo=timezone.utc)
+    valid_w = {
+        "location_id": "bengaluru_central",
+        "observed_time_utc": "2026-11-22T11:00:00Z",
+        "temperature_2m": 24.5,
+        "relative_humidity_2m": 60.0,
+        "surface_pressure": 915.2,
+        "precipitation": 0.0,
+        "wind_speed_10m": 3.5,
+    }
+    from skywatch.data.validation import validate_weather_record
+    assert validate_weather_record(valid_w, reference_time=now).is_valid is True
+
+    # Out of range humidity
+    bad_humidity = dict(valid_w, relative_humidity_2m=150.0)
+    assert validate_weather_record(bad_humidity, reference_time=now).is_valid is False
+
+    # Negative precipitation
+    bad_precip = dict(valid_w, precipitation=-2.0)
+    assert validate_weather_record(bad_precip, reference_time=now).is_valid is False

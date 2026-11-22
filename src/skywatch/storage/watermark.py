@@ -75,19 +75,25 @@ class WatermarkManager:
         self.watermark_path.parent.mkdir(parents=True, exist_ok=True)
         content = json.dumps(self.state, indent=2)
 
-        # Write to temporary file in the same directory
-        with tempfile.NamedTemporaryFile(
+        # Write to temporary file in the same directory with cleanup on failure (WR-22)
+        tf = tempfile.NamedTemporaryFile(
             "w",
             dir=str(self.watermark_path.parent),
             prefix=f"{self.watermark_path.name}.",
             suffix=f".tmp.{run_id}",
             delete=False,
             encoding="utf-8",
-        ) as tf:
+        )
+        temp_name = tf.name
+        try:
             tf.write(content)
             tf.flush()
             os.fsync(tf.fileno())
-            temp_name = tf.name
+            tf.close()
+            os.replace(temp_name, str(self.watermark_path))
+        except Exception:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise
 
-        os.replace(temp_name, str(self.watermark_path))
         logger.info(f"Committed watermarks for {len(self.state.get('sensors', {}))} sensors (run_id: {run_id})")

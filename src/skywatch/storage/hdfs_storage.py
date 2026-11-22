@@ -74,10 +74,14 @@ class HDFSStorageAdapter:
             raise FileNotFoundError(f"Local file does not exist: {local_file_path}")
 
         filename = local_file.name
+        # Sanitize partition dir to prevent path traversal (WR-20)
+        clean_partition = Path(hdfs_partition_dir.lstrip("/")).as_posix()
+        fallback_target_dir = (self.offline_dir / clean_partition).resolve()
+        if not str(fallback_target_dir).startswith(str(self.offline_dir.resolve())):
+            raise ValueError(f"Path traversal detected in HDFS partition: {hdfs_partition_dir}")
 
         # If HDFS not available or in safemode, route to offline fallback directory
         if not self.is_available() or self.check_safemode():
-            fallback_target_dir = self.offline_dir / hdfs_partition_dir.lstrip("/")
             fallback_target_dir.mkdir(parents=True, exist_ok=True)
             fallback_file = fallback_target_dir / filename
             shutil.copy2(str(local_file), str(fallback_file))
@@ -86,7 +90,7 @@ class HDFSStorageAdapter:
 
         # HDFS is online: stage to /skywatch/_staging and move to target partition
         staging_dir = f"{self.hdfs_root}/_staging"
-        target_dir = f"{self.hdfs_root}/{hdfs_partition_dir.lstrip('/')}"
+        target_dir = f"{self.hdfs_root}/{clean_partition}"
         staging_file = f"{staging_dir}/{run_id}_{filename}"
         final_file = f"{target_dir}/{filename}"
 
@@ -98,14 +102,22 @@ class HDFSStorageAdapter:
             # 2. Put to staging
             subprocess.run(["hdfs", "dfs", "-put", "-f", str(local_file), staging_file], check=True, timeout=30)
 
-            # 3. Atomic rename/move to target
+            # 3. Pre-remove target if exists to avoid move error (WR-19)
+            subprocess.run(["hdfs", "dfs", "-rm", "-f", final_file], check=False, timeout=10)
+
+            # 4. Atomic rename/move to target
             subprocess.run(["hdfs", "dfs", "-mv", staging_file, final_file], check=True, timeout=10)
             logger.info(f"Uploaded {local_file_path} to HDFS: {final_file}")
             return True
 
         except Exception as exc:
             logger.error(f"Failed HDFS upload: {exc}. Falling back to local offline cache.")
-            fallback_target_dir = self.offline_dir / hdfs_partition_dir.lstrip("/")
             fallback_target_dir.mkdir(parents=True, exist_ok=True)
             shutil.copy2(str(local_file), str(fallback_target_dir / filename))
             return False
+        finally:
+            # Clean up staging file if leftover (WR-19)
+            try:
+                subprocess.run(["hdfs", "dfs", "-rm", "-f", staging_file], check=False, timeout=5)
+            except Exception:
+                pass

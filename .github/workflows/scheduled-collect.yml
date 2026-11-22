@@ -11,6 +11,7 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,5 +38,5 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/raw/_manifest.csv config/stations.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(data): automated raw ingestion collect [skip ci]" && git push)
+          git add -f data/raw/_manifest.csv config/stations.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore(data): automated raw ingestion collect [skip ci]" && git pull --rebase origin main && git push)

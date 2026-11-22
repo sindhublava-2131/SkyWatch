@@ -33,25 +33,32 @@ def load_profile(
     profiles_dir: Optional[str] = None,
 ) -> ProfileConfig:
     """Load configuration for the requested profile name, falling back to active env or 'modern'."""
-    chosen_profile = (
+    raw_name = (
         profile_name
         or os.environ.get("SKYWATCH_PROFILE")
         or "modern"
     ).lower()
 
+    # Enforce safe profile name to prevent path traversal (WR-18)
+    clean_profile = "".join(c for c in raw_name if c.isalnum() or c in ("_", "-"))
+    if not clean_profile:
+        clean_profile = "modern"
+
     base_dir = Path(profiles_dir) if profiles_dir else Path("profiles")
-    profile_file = base_dir / f"{chosen_profile}.env"
+    profile_file = base_dir / f"{clean_profile}.env"
 
     file_values: Dict[str, str] = {}
     if profile_file.is_file():
         file_values = dotenv.dotenv_values(str(profile_file))
 
     def get_val(key: str, default: str) -> str:
-        # Prioritize explicit environment variable, then profile file value, then default
+        # Prioritize file values if profile was explicitly requested (CR-05), otherwise ambient os.environ
+        if profile_name is not None and key in file_values:
+            return file_values[key]
         return os.environ.get(key) or file_values.get(key) or default
 
     return ProfileConfig(
-        profile_name=chosen_profile,
+        profile_name=clean_profile,
         hadoop_home=get_val("HADOOP_HOME", "/opt/bigdata/hadoop-3.4.3"),
         pig_home=get_val("PIG_HOME", "/opt/bigdata/pig-0.18.0"),
         spark_home=get_val("SPARK_HOME", "/opt/bigdata/spark-4.3.0-bin-hadoop3"),

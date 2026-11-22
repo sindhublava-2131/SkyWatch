@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from typing import List, Optional
 
 from skywatch.collector.collector import IngestionOrchestrator
 from skywatch.collector.discovery import discover_stations
@@ -50,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(args: list[str] | None = None) -> int:
+def main(args: Optional[List[str]] = None) -> int:
     """Main CLI entrypoint."""
     parser = build_parser()
     parsed = parser.parse_args(args)

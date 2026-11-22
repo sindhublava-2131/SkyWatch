@@ -48,6 +48,7 @@ venv.bak/
 # SkyWatch local data (preserve directory structure but ignore runtime generated data)
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/_manifest.csv
 data/normalized/*
 !data/normalized/.gitkeep
 data/clean/*

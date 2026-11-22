@@ -29,6 +29,14 @@ from skywatch.storage.watermark import WatermarkManager
 
 logger = get_logger("orchestrator")
 
+BENGALURU_CENTRAL_COORDINATES = (12.91, 77.61)
+
+
+def _safe_id(val: Any) -> Any:
+    """Cast to int if all digits, else preserve original string."""
+    s = str(val).strip()
+    return int(s) if s.isdigit() else s
+
 
 class IngestionOrchestrator:
     """End-to-end ingestion orchestrator for environmental feeds."""
@@ -86,58 +94,10 @@ class IngestionOrchestrator:
             # 1. Collect Air Quality Data
             for station in stations:
                 station_id = station["station_id"]
-
-                if mode == "latest":
-                    endpoint = f"/locations/{station_id}/latest"
-                    payload = self.openaq.get_latest(int(station_id))
-                    save_raw_response(
-                        raw_data=payload,
-                        source="openaq",
-                        endpoint_url=f"https://api.openaq.org/v3{endpoint}",
-                        http_status=200,
-                        run_id=rid,
-                        base_dir=self.raw_dir,
-                        ingest_dt=ingest_dt,
-                    )
-                    results = payload.get("results", [])
-                    raw_records.extend(results)
-
-                    for rec in results:
-                        norm = normalize_openaq_record(rec, station, ingestion_time_utc)
-                        normalized_aq_records.append(norm)
-
-                        # Update watermark if valid and newer
-                        sensor_id = norm["sensor_id"]
-                        meas_time = norm["measurement_time_utc"]
-                        current_wm = self.watermark_mgr.get_watermark(sensor_id)
-                        if not current_wm or meas_time > current_wm:
-                            self.watermark_mgr.update_watermark(
-                                sensor_id=sensor_id,
-                                station_id=station_id,
-                                parameter=norm["parameter"],
-                                last_measurement_utc=meas_time,
-                                records_ingested=1,
-                                run_id=rid,
-                            )
-
-                else:  # incremental mode
-                    for param, sinfo in station.get("sensors", {}).items():
-                        sensor_id = sinfo["sensor_id"]
-                        wm = self.watermark_mgr.get_watermark(sensor_id)
-
-                        if wm:
-                            dt_from = wm
-                        else:
-                            # Default to 24 hours ago if no previous watermark exists
-                            dt_from = (now_utc - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
-                        dt_to = ingestion_time_utc
-
-                        endpoint = f"/sensors/{sensor_id}/measurements"
-                        payload = self.openaq.get_measurements(
-                            sensor_id=int(sensor_id),
-                            datetime_from=dt_from,
-                            datetime_to=dt_to,
-                        )
+                try:
+                    if mode == "latest":
+                        endpoint = f"/locations/{station_id}/latest"
+                        payload = self.openaq.get_latest(_safe_id(station_id))
                         save_raw_response(
                             raw_data=payload,
                             source="openaq",
@@ -150,27 +110,77 @@ class IngestionOrchestrator:
                         results = payload.get("results", [])
                         raw_records.extend(results)
 
-                        newest_ts = wm
                         for rec in results:
                             norm = normalize_openaq_record(rec, station, ingestion_time_utc)
                             normalized_aq_records.append(norm)
-                            meas_ts = norm["measurement_time_utc"]
-                            if not newest_ts or meas_ts > newest_ts:
-                                newest_ts = meas_ts
 
-                        if newest_ts:
-                            self.watermark_mgr.update_watermark(
-                                sensor_id=sensor_id,
-                                station_id=station_id,
-                                parameter=param,
-                                last_measurement_utc=newest_ts,
-                                records_ingested=len(results),
-                                run_id=rid,
+                            # Update watermark only if record is valid and newer (WR-06)
+                            if norm.get("is_valid"):
+                                sensor_id = norm["sensor_id"]
+                                meas_time = norm["measurement_time_utc"]
+                                current_wm = self.watermark_mgr.get_watermark(sensor_id)
+                                if not current_wm or meas_time > current_wm:
+                                    self.watermark_mgr.update_watermark(
+                                        sensor_id=sensor_id,
+                                        station_id=station_id,
+                                        parameter=norm["parameter"],
+                                        last_measurement_utc=meas_time,
+                                        records_ingested=1,
+                                        run_id=rid,
+                                    )
+
+                    else:  # incremental mode
+                        for param, sinfo in station.get("sensors", {}).items():
+                            sensor_id = sinfo["sensor_id"]
+                            wm = self.watermark_mgr.get_watermark(sensor_id)
+
+                            if wm:
+                                dt_from = wm
+                            else:
+                                # Default to 24 hours ago if no previous watermark exists
+                                dt_from = (now_utc - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                            dt_to = ingestion_time_utc
+
+                            endpoint = f"/sensors/{sensor_id}/measurements"
+                            payload = self.openaq.get_measurements(
+                                sensor_id=_safe_id(sensor_id),
+                                datetime_from=dt_from,
+                                datetime_to=dt_to,
                             )
+                            save_raw_response(
+                                raw_data=payload,
+                                source="openaq",
+                                endpoint_url=f"https://api.openaq.org/v3{endpoint}",
+                                http_status=200,
+                                run_id=rid,
+                                base_dir=self.raw_dir,
+                                ingest_dt=ingest_dt,
+                            )
+                            results = payload.get("results", [])
+                            raw_records.extend(results)
+
+                            newest_ts = None
+                            for rec in results:
+                                norm = normalize_openaq_record(rec, station, ingestion_time_utc)
+                                normalized_aq_records.append(norm)
+                                meas_ts = norm["measurement_time_utc"]
+                                if norm.get("is_valid") and (not newest_ts or meas_ts > newest_ts):
+                                    newest_ts = meas_ts
+
+                            if newest_ts and (not wm or newest_ts > wm) and len(results) > 0:
+                                self.watermark_mgr.update_watermark(
+                                    sensor_id=sensor_id,
+                                    station_id=station_id,
+                                    parameter=param,
+                                    last_measurement_utc=newest_ts,
+                                    records_ingested=len(results),
+                                    run_id=rid,
+                                )
+                except Exception as exc:
+                    logger.warning(f"Error querying station {station_id}: {exc}. Continuing with next station.")
 
             # 2. Collect Weather Data for Bengaluru central reference
-            ref_lat = 12.91
-            ref_lon = 77.61
+            ref_lat, ref_lon = BENGALURU_CENTRAL_COORDINATES
             weather_payload = self.weather.get_forecast(ref_lat, ref_lon)
             save_raw_response(
                 raw_data=weather_payload,
@@ -273,20 +283,43 @@ class IngestionOrchestrator:
                 for station in stations:
                     for _param, sinfo in station.get("sensors", {}).items():
                         sensor_id = sinfo["sensor_id"]
+                        dt_from_str = curr.strftime("%Y-%m-%dT00:00:00Z")
+                        dt_to_str = chunk_end.strftime("%Y-%m-%dT00:00:00Z")
                         payload = self.openaq.get_measurements(
-                            sensor_id=int(sensor_id),
-                            datetime_from=curr.strftime("%Y-%m-%dT00:00:00Z"),
-                            datetime_to=chunk_end.strftime("%Y-%m-%dT00:00:00Z"),
+                            sensor_id=_safe_id(sensor_id),
+                            datetime_from=dt_from_str,
+                            datetime_to=dt_to_str,
+                        )
+                        # Preserve raw payload during backfill (CR-03)
+                        save_raw_response(
+                            raw_data=payload,
+                            source="openaq",
+                            endpoint_url=f"https://api.openaq.org/v3/sensors/{sensor_id}/measurements",
+                            http_status=200,
+                            run_id=rid,
+                            base_dir=self.raw_dir,
+                            ingest_dt=chunk_ingest_dt,
                         )
                         for r in payload.get("results", []):
                             chunk_aq.append(normalize_openaq_record(r, station, now_str))
 
                 # Fetch archive weather for chunk
+                ref_lat, ref_lon = BENGALURU_CENTRAL_COORDINATES
                 weather_payload = self.weather.get_archive(
-                    latitude=12.91,
-                    longitude=77.61,
+                    latitude=ref_lat,
+                    longitude=ref_lon,
                     start_date=curr.strftime("%Y-%m-%d"),
                     end_date=chunk_end.strftime("%Y-%m-%d"),
+                )
+                # Preserve raw archive weather response during backfill (CR-03)
+                save_raw_response(
+                    raw_data=weather_payload,
+                    source="open-meteo",
+                    endpoint_url="https://archive-api.open-meteo.com/v1/archive",
+                    http_status=200,
+                    run_id=rid,
+                    base_dir=self.raw_dir,
+                    ingest_dt=chunk_ingest_dt,
                 )
                 chunk_weather = normalize_weather_response(
                     weather_payload,
@@ -305,13 +338,21 @@ class IngestionOrchestrator:
                 self.hdfs.upload_partition(aq_path, f"normalized/air_quality/ingest_dt={chunk_ingest_dt}", rid)
                 self.hdfs.upload_partition(w_path, f"normalized/weather/ingest_dt={chunk_ingest_dt}", rid)
 
-                # Update and persist checkpoint
+                # Update and persist checkpoint with cleanup on failure (WR-10)
                 completed_chunks.append(chunk_key)
                 self.checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-                with tempfile.NamedTemporaryFile("w", dir=str(self.checkpoint_path.parent), delete=False, encoding="utf-8") as tf:
+                tf = tempfile.NamedTemporaryFile("w", dir=str(self.checkpoint_path.parent), delete=False, encoding="utf-8")
+                tmp_cp = tf.name
+                try:
                     json.dump({"completed_chunks": completed_chunks, "last_updated": now_str}, tf, indent=2)
-                    tmp_cp = tf.name
-                os.replace(tmp_cp, str(self.checkpoint_path))
+                    tf.flush()
+                    os.fsync(tf.fileno())
+                    tf.close()
+                    os.replace(tmp_cp, str(self.checkpoint_path))
+                except Exception:
+                    if os.path.exists(tmp_cp):
+                        os.unlink(tmp_cp)
+                    raise
 
                 processed_chunks += 1
                 curr = chunk_end

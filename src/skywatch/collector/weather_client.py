@@ -30,8 +30,14 @@ class WeatherClient:
     ) -> None:
         self.timeout = timeout
         self.max_retries = max_retries
-        self.offline = offline or bool(os.environ.get("OPENAQ_OFFLINE", ""))
+        self.offline = (
+            offline
+            or bool(os.environ.get("WEATHER_OFFLINE", ""))
+            or bool(os.environ.get("SKYWATCH_OFFLINE", ""))
+            or bool(os.environ.get("OPENAQ_OFFLINE", ""))
+        )
         self.fixtures_dir = Path(fixtures_dir) if fixtures_dir else Path("tests/fixtures")
+        self.session = requests.Session()
 
     def __repr__(self) -> str:
         return f"<WeatherClient offline={self.offline} timeout={self.timeout}>"
@@ -46,7 +52,7 @@ class WeatherClient:
     def _request_with_retry(self, base_url: str, params: Dict[str, Any]) -> Dict[str, Any]:
         for attempt in range(self.max_retries):
             try:
-                response = requests.get(base_url, params=params, timeout=self.timeout)
+                response = self.session.get(base_url, params=params, timeout=self.timeout)
 
                 if response.status_code == 429:
                     sleep_time = min(30.0, 1.5 * (2**attempt)) + random.uniform(0.1, 1.0)
@@ -61,9 +67,16 @@ class WeatherClient:
                     continue
 
                 response.raise_for_status()
-                return response.json()
+                try:
+                    return response.json()
+                except (ValueError, json.JSONDecodeError) as json_err:
+                    if attempt == self.max_retries - 1:
+                        raise requests.HTTPError(f"Invalid JSON response from {base_url}: {json_err}")
+                    sleep_time = min(30.0, 1.0 * (2**attempt)) + random.uniform(0.1, 0.5)
+                    time.sleep(sleep_time)
+                    continue
 
-            except (requests.ConnectionError, requests.Timeout) as exc:
+            except (requests.ConnectionError, requests.Timeout, requests.RequestException) as exc:
                 if attempt == self.max_retries - 1:
                     raise exc
                 sleep_time = min(30.0, 1.0 * (2**attempt)) + random.uniform(0.1, 0.5)

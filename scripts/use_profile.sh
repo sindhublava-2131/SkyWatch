@@ -3,7 +3,13 @@
 # Usage: source scripts/use_profile.sh [modern|lab]
 
 PROFILE="${1:-modern}"
-PROFILE_FILE="profiles/${PROFILE}.env"
+if [[ "$PROFILE" != "modern" && "$PROFILE" != "lab" ]]; then
+    echo "Error: Invalid profile '$PROFILE'. Available profiles: modern, lab" >&2
+    return 1 2>/dev/null || exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROFILE_FILE="${SCRIPT_DIR}/profiles/${PROFILE}.env"
 
 if [ ! -f "$PROFILE_FILE" ]; then
     echo "Error: Profile file '$PROFILE_FILE' does not exist." >&2

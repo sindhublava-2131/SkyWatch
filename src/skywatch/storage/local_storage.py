@@ -35,21 +35,27 @@ def atomic_write_file(
     mode = "wb" if is_binary else "w"
     encoding = None if is_binary else "utf-8"
 
-    # Write to temp file in the same directory to ensure same filesystem for os.replace
-    with tempfile.NamedTemporaryFile(
+    # Write to temp file in the same directory to ensure same filesystem for os.replace with cleanup (WR-21)
+    tf = tempfile.NamedTemporaryFile(
         mode,
         dir=str(target.parent),
         prefix=f"{target.name}.",
         suffix=temp_suffix,
         delete=False,
         encoding=encoding,
-    ) as tf:
+    )
+    temp_name = tf.name
+    try:
         tf.write(content)
         tf.flush()
         os.fsync(tf.fileno())
-        temp_name = tf.name
+        tf.close()
+        os.replace(temp_name, str(target))
+    except Exception:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+        raise
 
-    os.replace(temp_name, str(target))
     return str(target)
 
 

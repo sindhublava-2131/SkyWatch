@@ -5,6 +5,7 @@ with explicit measurement_time_utc and ingestion_time_utc timestamps.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from skywatch.data.deduplication import compute_air_quality_key, compute_weather_key
@@ -12,17 +13,25 @@ from skywatch.data.validation import validate_air_quality_record
 
 
 def _format_utc_timestamp(ts_str: str) -> str:
-    """Ensure timestamp string is formatted cleanly with Z suffix."""
+    """Ensure timestamp string is parsed and normalized to UTC ISO format with Z suffix (WR-16)."""
     if not ts_str:
         return ts_str
-    # If in format YYYY-MM-DDTHH:MM, append :00Z
-    if len(ts_str) == 16 and "T" in ts_str and ":" in ts_str:
-        return f"{ts_str}:00Z"
-    if ts_str.endswith("+00:00"):
-        return ts_str.replace("+00:00", "Z")
-    if not ts_str.endswith("Z"):
-        return f"{ts_str}Z"
-    return ts_str
+    try:
+        # If in format YYYY-MM-DDTHH:MM, append :00
+        if len(ts_str) == 16 and "T" in ts_str and ":" in ts_str:
+            ts_str = f"{ts_str}:00"
+        dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        if ts_str.endswith("+00:00"):
+            return ts_str.replace("+00:00", "Z")
+        if not ts_str.endswith("Z"):
+            return f"{ts_str}Z"
+        return ts_str
 
 
 def normalize_openaq_record(
@@ -65,6 +74,9 @@ def normalize_openaq_record(
         unit = "ug/m3"
 
     sensor_id = str(raw_record.get("sensorsId") or raw_record.get("sensor_id") or "")
+    # Fallback lookup from station metadata sensors dict (IN-04)
+    if not sensor_id and param_name:
+        sensor_id = str(station_meta.get("sensors", {}).get(param_name, {}).get("sensor_id", ""))
     station_id = str(station_meta.get("station_id", ""))
     station_name = station_meta.get("name", "Unknown Station")
     val: Optional[float] = None

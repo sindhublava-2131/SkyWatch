@@ -75,7 +75,9 @@ def validate_record_dict(
                 except (ValueError, TypeError):
                     return False, f"Column '{col_name}' must be numeric (double), got {type(val)}"
         elif col_type == "integer":
-            if not isinstance(val, int) or isinstance(val, bool):
+            if isinstance(val, bool):
+                return False, f"Column '{col_name}' must be integer, got bool"
+            if not isinstance(val, int):
                 try:
                     int(val)
                 except (ValueError, TypeError):

@@ -49,3 +49,26 @@ def test_save_raw_response(tmp_path):
     assert rows[0]["run_id"] == "run-test-abc"
     assert rows[0]["sha256"] == expected_sha
     assert rows[0]["record_count"] == "2"
+
+
+def test_save_raw_response_multi_station_no_overwrite(tmp_path):
+    base_dir = tmp_path / "raw"
+    entry1 = save_raw_response(
+        raw_data={"station": 1, "value": 10},
+        source="openaq",
+        endpoint_url="https://api.openaq.org/v3/locations/1/latest",
+        http_status=200,
+        run_id="same-run-id",
+        base_dir=str(base_dir),
+    )
+    entry2 = save_raw_response(
+        raw_data={"station": 2, "value": 20},
+        source="openaq",
+        endpoint_url="https://api.openaq.org/v3/locations/2/latest",
+        http_status=200,
+        run_id="same-run-id",
+        base_dir=str(base_dir),
+    )
+    assert entry1["file_path"] != entry2["file_path"]
+    assert Path(entry1["file_path"]).is_file()
+    assert Path(entry2["file_path"]).is_file()

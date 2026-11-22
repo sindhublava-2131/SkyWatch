@@ -22,7 +22,7 @@ _CURRENT_RUN_ID: contextvars.ContextVar[str] = contextvars.ContextVar(
 # Regex patterns matching sensitive keys or credentials
 _SENSITIVE_PATTERNS = [
     re.compile(r'(?i)(api[_-]?key|token|secret|password|auth)\s*[:=]\s*["\']?([^"\'\s&,]+)["\']?'),
-    re.compile(r'(?i)bearer\s+([a-zA-Z0-9_\-\.]+)'),
+    re.compile(r'(?i)(bearer\s+)[a-zA-Z0-9_\-\.]+'),
 ]
 
 
@@ -56,10 +56,8 @@ def redact_sensitive(text: str) -> str:
     if not isinstance(text, str):
         return text
 
-    redacted = text
-    for pattern in _SENSITIVE_PATTERNS:
-        # Preserve the key label and replace the secret value with ***REDACTED***
-        redacted = pattern.sub(r"\1=***REDACTED***", redacted)
+    redacted = _SENSITIVE_PATTERNS[0].sub(r"\1=***REDACTED***", text)
+    redacted = _SENSITIVE_PATTERNS[1].sub(r"\1***REDACTED***", redacted)
     return redacted
 
 

@@ -39,6 +39,8 @@ def test_redact_sensitive_strings():
     redacted = redact_sensitive(sensitive)
     assert "abc123secret" not in redacted
     assert "OPENAQ_API_KEY=***REDACTED***" in redacted
+    assert "eyJhbGciOi" not in redacted
+    assert "Bearer ***REDACTED***" in redacted
 
 
 def test_json_pipeline_formatter():

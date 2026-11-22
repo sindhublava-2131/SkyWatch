@@ -77,12 +77,52 @@ def check_timestamp(
 
     try:
         dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
     except (ValueError, TypeError):
         return ValidationResult(False, "invalid_timestamp_format")
 
     now = reference_time or datetime.now(timezone.utc)
     if (dt - now).total_seconds() > max_future_seconds:
         return ValidationResult(False, "future_timestamp")
+
+    return ValidationResult(True, None)
+
+
+def validate_weather_record(
+    record: Dict[str, Any],
+    reference_time: Optional[datetime] = None,
+) -> ValidationResult:
+    """Validate meteorological hygiene rules on a weather record."""
+    required = ["location_id", "observed_time_utc", "temperature_2m", "relative_humidity_2m"]
+    res = check_required_fields(record, required)
+    if not res.is_valid:
+        return res
+
+    res = check_timestamp(record["observed_time_utc"], reference_time=reference_time)
+    if not res.is_valid:
+        return res
+
+    try:
+        humidity = float(record["relative_humidity_2m"])
+        if not (0.0 <= humidity <= 100.0):
+            return ValidationResult(False, f"invalid_humidity_range:{humidity}")
+
+        temp = float(record["temperature_2m"])
+        if not (-50.0 <= temp <= 65.0):
+            return ValidationResult(False, f"extreme_temperature_outlier:{temp}")
+
+        if record.get("precipitation") is not None:
+            precip = float(record["precipitation"])
+            if precip < 0.0:
+                return ValidationResult(False, f"negative_precipitation:{precip}")
+
+        if record.get("wind_speed_10m") is not None:
+            wind = float(record["wind_speed_10m"])
+            if wind < 0.0:
+                return ValidationResult(False, f"negative_wind_speed:{wind}")
+    except (ValueError, TypeError):
+        return ValidationResult(False, "weather_field_type_error")
 
     return ValidationResult(True, None)
 

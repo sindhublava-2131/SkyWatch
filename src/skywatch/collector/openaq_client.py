@@ -38,6 +38,7 @@ class OpenAQClient:
         self.max_retries = max_retries
         self.offline = offline or bool(os.environ.get("OPENAQ_OFFLINE", ""))
         self.fixtures_dir = Path(fixtures_dir) if fixtures_dir else Path("tests/fixtures")
+        self.session = requests.Session()
 
     def __repr__(self) -> str:
         # Prevent API key leakage in string representations
@@ -63,7 +64,7 @@ class OpenAQClient:
 
         for attempt in range(self.max_retries):
             try:
-                response = requests.get(
+                response = self.session.get(
                     url,
                     headers=self._get_headers(),
                     params=params,
@@ -96,9 +97,16 @@ class OpenAQClient:
                     continue
 
                 response.raise_for_status()
-                return response.json()
+                try:
+                    return response.json()
+                except (ValueError, json.JSONDecodeError) as json_err:
+                    if attempt == self.max_retries - 1:
+                        raise requests.HTTPError(f"Invalid JSON response from {endpoint}: {json_err}")
+                    sleep_time = min(30.0, 1.0 * (2**attempt)) + random.uniform(0.1, 0.5)
+                    time.sleep(sleep_time)
+                    continue
 
-            except (requests.ConnectionError, requests.Timeout) as exc:
+            except (requests.ConnectionError, requests.Timeout, requests.RequestException) as exc:
                 if attempt == self.max_retries - 1:
                     raise exc
                 sleep_time = min(30.0, 1.0 * (2**attempt)) + random.uniform(0.1, 0.5)

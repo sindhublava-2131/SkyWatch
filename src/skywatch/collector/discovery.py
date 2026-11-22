@@ -35,6 +35,8 @@ def discover_stations(
     now_utc = datetime.now(timezone.utc)
 
     for loc in raw_locations:
+        if loc.get("id") is None:
+            continue
         loc_id = str(loc.get("id"))
         name = loc.get("name", "Unknown Station")
         coords = loc.get("coordinates") or {}
@@ -47,6 +49,8 @@ def discover_stations(
         # Extract PM sensors
         pm_sensors: Dict[str, Dict[str, str]] = {}
         for sensor in loc.get("sensors", []):
+            if sensor.get("id") is None:
+                continue
             sensor_name = (sensor.get("name") or "").lower()
             param_obj = sensor.get("parameter") or {}
             param_name = (param_obj.get("name") or sensor_name).lower()
@@ -90,11 +94,19 @@ def discover_stations(
     if output_file:
         out_path = Path(output_file)
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        # Atomic write via temp file
-        with tempfile.NamedTemporaryFile("w", dir=str(out_path.parent), delete=False, encoding="utf-8") as tf:
+        # Atomic write via temp file with exception cleanup (WR-12)
+        tf = tempfile.NamedTemporaryFile("w", dir=str(out_path.parent), delete=False, encoding="utf-8")
+        temp_name = tf.name
+        try:
             json.dump(discovered, tf, indent=2)
-            temp_name = tf.name
-        os.replace(temp_name, str(out_path))
+            tf.flush()
+            os.fsync(tf.fileno())
+            tf.close()
+            os.replace(temp_name, str(out_path))
+        except Exception:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise
         logger.info(f"Station list committed to {out_path}")
 
     return discovered

@@ -126,3 +126,18 @@ def test_validate_record_dict():
     is_valid, reason = validate_record_dict(invalid_record3, "air_quality")
     assert is_valid is False
     assert "must be numeric" in reason
+
+    # WR-17: Boolean passed where integer required in manifest schema
+    manifest_rec = {
+        "run_id": "r1",
+        "file_path": "path/f.json",
+        "source": "openaq",
+        "endpoint_url": "https://api",
+        "http_status": 200,
+        "sha256": "abc",
+        "record_count": True,  # boolean should not be accepted as integer
+        "collected_at_utc": "2026-11-22T00:00:00Z",
+    }
+    is_valid, reason = validate_record_dict(manifest_rec, "manifest")
+    assert is_valid is False
+    assert "got bool" in reason
