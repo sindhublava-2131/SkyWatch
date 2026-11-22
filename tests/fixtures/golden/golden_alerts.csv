@@ -1,32 +1,32 @@
 alert_id,alert_type,severity,station_id,station_name,timestamp_utc,message,metric_value
-d88a7d1c-82fe-5c35-98f4-ef0582e0a57f,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T02:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 307.4),307.4
-8c29c506-d52f-55a8-9241-3a6f53803ee4,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T03:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 326.9),326.9
-8c3bbd4c-c0ff-5fb2-a23d-417f957eaca2,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T04:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 346.3),346.3
-8646556e-0434-548f-8267-6ad1c27e5a3d,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T05:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 346.4),346.4
-a825b435-86f2-58b0-aeed-526bc9006d57,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T06:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 346.4),346.4
-0cd23a51-c2ee-5735-aa83-3d1464a1b530,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T07:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 346.6),346.6
-d02bdf65-510f-5fe9-8e29-03a013e02d61,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T08:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 346.7),346.7
-fd26e53b-c3fe-582a-80d7-b3604707d442,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T09:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 346.8),346.8
-119cd804-4772-5476-ae6d-71def1045d0a,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T10:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 346.9),346.9
-a542d052-6b91-5987-a6c4-377f6753851e,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T11:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.0),347.0
-48940eef-c7b8-56f6-bc95-0bb1101c9300,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T12:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.0),347.0
-d975371b-d2db-548d-b983-e0d444314b6a,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T13:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.2),347.2
-61f62d61-6936-5662-b998-aae68759415a,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T14:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.3),347.3
-7369253c-f465-51bf-873e-52b6b083067b,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T15:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.4),347.4
-75bce312-860f-5cdc-a4af-d8e5784ae564,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T16:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.5),347.5
-908fac0f-83c4-56dd-a7a6-76f37c332d60,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T17:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.6),347.6
-8bb5512e-952c-5ee7-bede-05b0aa3d2343,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T18:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.7),347.7
-06d3f14a-1c59-52b5-8fc0-48533d47428c,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T19:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.8),347.8
-1f958ba8-c5b1-532e-afb8-df4a4e2df237,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T20:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 347.9),347.9
-fea19edd-cdce-52c2-b31f-f16dc4726d9e,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T21:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 348.0),348.0
-7bf2f52c-ddc8-5026-9e50-de192c46a06f,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T22:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 348.1),348.1
-3afa6aa0-19af-5e80-aa84-7f415f45c825,category_very_poor,CRITICAL,2179,Station 2179,2026-11-21T23:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 348.2),348.2
-164b6df7-e243-5827-befc-2f8ede7cf613,category_very_poor,CRITICAL,2179,Station 2179,2026-11-22T00:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 328.9),328.9
-69a83d50-2501-5f70-9193-4e0f33474423,category_very_poor,CRITICAL,2179,Station 2179,2026-11-22T01:00:00Z,Air quality at Station 2179 reached Very Poor category (AQI 309.6),309.6
-e1920a30-4c60-5704-926a-e54aaa22fd67,spike_detected,WARNING,2179,Station 2179,2026-11-21T00:00:00Z,Pollution spike at Station 2179 for pm25: 642.9 is >3x trailing median (54.1),642.9
-28cfd8e7-cd24-5c6c-a4bc-cf1598a34425,category_poor,WARNING,2179,Station 2179,2026-11-21T01:00:00Z,Air quality at Station 2179 reached Poor category (AQI 245.4),245.4
-7992c5b4-4f23-52ce-83dd-a7279bcafd37,spike_detected,WARNING,2179,Station 2179,2026-11-21T01:00:00Z,Pollution spike at Station 2179 for pm25: 643.8 is >3x trailing median (55.9),643.8
-d108b760-bcb0-5707-a6a5-b5a6d0fc08e5,spike_detected,WARNING,2179,Station 2179,2026-11-21T02:00:00Z,Pollution spike at Station 2179 for pm25: 644.6 is >3x trailing median (57.7),644.6
-792bbb1e-746c-5e59-aa1e-f1ab4a96f2c4,spike_detected,WARNING,2179,Station 2179,2026-11-21T03:00:00Z,Pollution spike at Station 2179 for pm25: 645.5 is >3x trailing median (59.5),645.5
-2928d536-1bd6-579d-9720-f955068f0f67,spike_detected,WARNING,2179,Station 2179,2026-11-21T04:00:00Z,Pollution spike at Station 2179 for pm25: 646.5 is >3x trailing median (61.3),646.5
-651887e1-83a9-5cf2-a582-dc8f175d72f9,category_poor,WARNING,2179,Station 2179,2026-11-22T02:00:00Z,Air quality at Station 2179 reached Poor category (AQI 256.0),256.0
+d88a7d1c-82fe-5c35-98f4-ef0582e0a57f,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T02:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 307.4)",307.4
+8c29c506-d52f-55a8-9241-3a6f53803ee4,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T03:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 326.9)",326.9
+8c3bbd4c-c0ff-5fb2-a23d-417f957eaca2,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T04:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 346.3)",346.3
+8646556e-0434-548f-8267-6ad1c27e5a3d,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T05:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 346.4)",346.4
+a825b435-86f2-58b0-aeed-526bc9006d57,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T06:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 346.4)",346.4
+0cd23a51-c2ee-5735-aa83-3d1464a1b530,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T07:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 346.6)",346.6
+d02bdf65-510f-5fe9-8e29-03a013e02d61,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T08:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 346.7)",346.7
+fd26e53b-c3fe-582a-80d7-b3604707d442,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T09:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 346.8)",346.8
+119cd804-4772-5476-ae6d-71def1045d0a,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T10:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 346.9)",346.9
+a542d052-6b91-5987-a6c4-377f6753851e,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T11:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.0)",347.0
+48940eef-c7b8-56f6-bc95-0bb1101c9300,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T12:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.0)",347.0
+d975371b-d2db-548d-b983-e0d444314b6a,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T13:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.2)",347.2
+61f62d61-6936-5662-b998-aae68759415a,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T14:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.3)",347.3
+7369253c-f465-51bf-873e-52b6b083067b,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T15:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.4)",347.4
+75bce312-860f-5cdc-a4af-d8e5784ae564,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T16:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.5)",347.5
+908fac0f-83c4-56dd-a7a6-76f37c332d60,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T17:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.6)",347.6
+8bb5512e-952c-5ee7-bede-05b0aa3d2343,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T18:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.7)",347.7
+06d3f14a-1c59-52b5-8fc0-48533d47428c,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T19:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.8)",347.8
+1f958ba8-c5b1-532e-afb8-df4a4e2df237,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T20:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 347.9)",347.9
+fea19edd-cdce-52c2-b31f-f16dc4726d9e,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T21:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 348.0)",348.0
+7bf2f52c-ddc8-5026-9e50-de192c46a06f,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T22:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 348.1)",348.1
+3afa6aa0-19af-5e80-aa84-7f415f45c825,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T23:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 348.2)",348.2
+164b6df7-e243-5827-befc-2f8ede7cf613,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-22T00:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 328.9)",328.9
+69a83d50-2501-5f70-9193-4e0f33474423,category_very_poor,CRITICAL,2179,"Silk Board, Bengaluru - CPCB",2026-11-22T01:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Very Poor category (AQI 309.6)",309.6
+e1920a30-4c60-5704-926a-e54aaa22fd67,spike_detected,WARNING,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T00:00:00Z,"Pollution spike at Silk Board, Bengaluru - CPCB for pm25: 642.9 is >3x trailing median (54.1)",642.9
+28cfd8e7-cd24-5c6c-a4bc-cf1598a34425,category_poor,WARNING,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T01:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Poor category (AQI 245.4)",245.4
+7992c5b4-4f23-52ce-83dd-a7279bcafd37,spike_detected,WARNING,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T01:00:00Z,"Pollution spike at Silk Board, Bengaluru - CPCB for pm25: 643.8 is >3x trailing median (55.9)",643.8
+d108b760-bcb0-5707-a6a5-b5a6d0fc08e5,spike_detected,WARNING,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T02:00:00Z,"Pollution spike at Silk Board, Bengaluru - CPCB for pm25: 644.6 is >3x trailing median (57.7)",644.6
+792bbb1e-746c-5e59-aa1e-f1ab4a96f2c4,spike_detected,WARNING,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T03:00:00Z,"Pollution spike at Silk Board, Bengaluru - CPCB for pm25: 645.5 is >3x trailing median (59.5)",645.5
+2928d536-1bd6-579d-9720-f955068f0f67,spike_detected,WARNING,2179,"Silk Board, Bengaluru - CPCB",2026-11-21T04:00:00Z,"Pollution spike at Silk Board, Bengaluru - CPCB for pm25: 646.5 is >3x trailing median (61.3)",646.5
+651887e1-83a9-5cf2-a582-dc8f175d72f9,category_poor,WARNING,2179,"Silk Board, Bengaluru - CPCB",2026-11-22T02:00:00Z,"Air quality at Silk Board, Bengaluru - CPCB reached Poor category (AQI 256.0)",256.0

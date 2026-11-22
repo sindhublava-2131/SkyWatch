@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from bisect import bisect_left, bisect_right
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -19,8 +20,11 @@ def load_stations_metadata(stations_path: Optional[str] = None) -> Dict[str, str
     try:
         with open(st_file, "r", encoding="utf-8") as f:
             data = json.load(f)
-            stations = data.get("stations", [])
-            return {str(s["id"]): str(s.get("name", s["id"])) for s in stations}
+            stations = data if isinstance(data, list) else data.get("stations", [])
+            return {
+                str(s.get("station_id", s.get("id"))): str(s.get("name", s.get("station_id", s.get("id"))))
+                for s in stations
+            }
     except Exception:
         return {}
 
@@ -80,17 +84,24 @@ def calculate_cpcb_rolling_index_records(
 
     for st_id, param_dict in sorted(records_by_key.items()):
         st_name = stations_meta.get(st_id, f"Station {st_id}")
-        station_times = sorted(set(param_dict["pm25"].keys()) | set(param_dict["pm10"].keys()))
+        pm25_items = sorted(param_dict["pm25"].items(), key=lambda x: x[0])
+        pm25_times = [t for t, _ in pm25_items]
+        pm25_values = [v for _, v in pm25_items]
+
+        pm10_items = sorted(param_dict["pm10"].items(), key=lambda x: x[0])
+        pm10_times = [t for t, _ in pm10_items]
+        pm10_values = [v for _, v in pm10_items]
+
+        station_times = sorted(set(pm25_times) | set(pm10_times))
 
         for end_dt in station_times:
             window_start = end_dt - timedelta(hours=23)
             window_end_str = end_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            # PM2.5 evaluation
-            pm25_vals = [
-                v for t, v in param_dict["pm25"].items()
-                if window_start <= t <= end_dt
-            ]
+            # PM2.5 evaluation using bisect window slice
+            i_start = bisect_left(pm25_times, window_start)
+            i_end = bisect_right(pm25_times, end_dt)
+            pm25_vals = pm25_values[i_start:i_end]
             pm25_count = len(pm25_vals)
             if pm25_count >= 16:
                 pm25_avg = round(sum(pm25_vals) / pm25_count, 1)
@@ -99,11 +110,10 @@ def calculate_cpcb_rolling_index_records(
                 pm25_avg = None
                 pm25_sub = None
 
-            # PM10 evaluation
-            pm10_vals = [
-                v for t, v in param_dict["pm10"].items()
-                if window_start <= t <= end_dt
-            ]
+            # PM10 evaluation using bisect window slice
+            j_start = bisect_left(pm10_times, window_start)
+            j_end = bisect_right(pm10_times, end_dt)
+            pm10_vals = pm10_values[j_start:j_end]
             pm10_count = len(pm10_vals)
             if pm10_count >= 16:
                 pm10_avg = round(sum(pm10_vals) / pm10_count, 1)

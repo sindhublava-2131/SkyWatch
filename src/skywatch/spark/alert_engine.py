@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import statistics
 import uuid
+from bisect import bisect_left
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -161,14 +162,14 @@ def detect_rolling_median_spikes_records(
 
     for (st_id, param), data_points in series.items():
         sorted_points = sorted(data_points, key=lambda x: x[0])
+        times = [p[0] for p in sorted_points]
+        values = [p[1] for p in sorted_points]
         st_name = stations_meta.get(st_id, f"Station {st_id}")
 
         for i, (current_dt, current_val) in enumerate(sorted_points):
             window_start = current_dt - timedelta(hours=23)
-            trailing_vals = [
-                v for t, v in sorted_points
-                if window_start <= t < current_dt  # Prior history in window
-            ]
+            i_start = bisect_left(times, window_start)
+            trailing_vals = values[i_start:i]  # Prior history strictly before current_dt
 
             if len(trailing_vals) >= min_history:
                 med = statistics.median(trailing_vals)
