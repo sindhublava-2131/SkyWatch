@@ -15,7 +15,7 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 ## Phases
 
 - [x] **Phase 1: Foundation, Data Ingestion & Storage Architecture** - Implement project structure, dual profiles (`modern`/`lab`), schemas, OpenAQ/Open-Meteo collectors with fixture fallbacks, validation, deduplication, local and HDFS storage layout, and CLI ingestion commands.
-- [ ] **Phase 2: Big Data ETL with Apache Pig & Hadoop HDFS** - Implement Apache Pig data cleansing, distinct deduplication, type casting, sidecar schema generation, daily aggregations, and hourly rollups on HDFS with profile parameterization.
+- [x] **Phase 2: Big Data ETL with Apache Pig & Hadoop HDFS** - Implement Apache Pig data cleansing, distinct deduplication, type casting, sidecar schema generation, daily aggregations, and hourly rollups on HDFS with profile parameterization.
 - [ ] **Phase 3: Analytics Engine with Apache Spark & Scale Benchmarking** - Implement Spark station statistics, temporal trends, weather joins, Pearson correlations with confidence tiers, 24h rolling CPCB PM-based AQI index, alert engine, export publishing, and 1×/10×/100× scale benchmark.
 - [ ] **Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification** - Implement Streamlit multi-page dashboard, unified CLI (`skywatch`), smoke tests (`make smoke`), profile rollback drill, end-to-end test suite (≥80% coverage on core logic), and project documentation.
 
@@ -50,8 +50,8 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 4. Python Pig runner wrapper passes parameters (`$INPUT`, `$OUTPUT`, `$RUN_DATE`) and executes scripts with exit code 0 in under 90 seconds on frozen sample data.
 
 #### Plans
-- [ ] 02-01: Apache Pig scripts (`clean_air_quality.pig`, `station_stats.pig`, `hourly_rollup.pig`) with explicit schema definitions and Java 8 compatibility. `[PIG-01, PIG-02, PIG-03]`
-- [ ] 02-02: Pig runner orchestration module, parameter passing, sidecar `_schema.json` generation, HDFS verification, and integration tests on sample dataset. `[PIG-01, PIG-02, PIG-03]`
+- [x] 02-01: Apache Pig scripts (`clean_air_quality.pig`, `station_stats.pig`, `hourly_rollup.pig`) with explicit schema definitions and Java 8 compatibility. `[PIG-01, PIG-02, PIG-03]`
+- [x] 02-02: Pig runner orchestration module, parameter passing, sidecar `_schema.json` generation, HDFS verification, and integration tests on sample dataset. `[PIG-01, PIG-02, PIG-03]`
 
 ---
 
@@ -99,6 +99,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation, Data Ingestion & Storage Architecture | 3/3 | Completed | 2026-11-22 |
-| 2. Big Data ETL with Apache Pig & Hadoop HDFS | 0/2 | Ready to execute | - |
+| 2. Big Data ETL with Apache Pig & Hadoop HDFS | 2/2 | Completed | 2026-11-22 |
 | 3. Analytics Engine with Apache Spark & Scale Benchmarking | 0/3 | Not started | - |
 | 4. Interactive Dashboard, CLI Integration & Dual-Profile Verification | 0/3 | Not started | - |
