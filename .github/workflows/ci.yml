@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest responses psutil pyarrow
+          pip install ruff pytest responses psutil pyarrow pyspark pytest-github-actions-annotate-failures
           pip install -e .
 
       - name: Run Ruff Lint
@@ -32,4 +32,4 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest
+          pytest -v --tb=short
