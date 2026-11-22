@@ -1,0 +1,95 @@
+version: "2.0"
+description: "Official MoEFCC/CPCB National Air Quality Index (NAQI) sub-index breakpoints"
+reference: "Central Pollution Control Board (CPCB), Ministry of Environment, Forest and Climate Change, Govt. of India"
+valid_hours_threshold: 16
+window_hours: 24
+
+categories:
+  - name: "Good"
+    index_min: 0
+    index_max: 50
+    color: "#00B050"
+  - name: "Satisfactory"
+    index_min: 51
+    index_max: 100
+    color: "#92D050"
+  - name: "Moderate"
+    index_min: 101
+    index_max: 200
+    color: "#FFFF00"
+  - name: "Poor"
+    index_min: 201
+    index_max: 300
+    color: "#FF9900"
+  - name: "Very Poor"
+    index_min: 301
+    index_max: 400
+    color: "#FF0000"
+  - name: "Severe"
+    index_min: 401
+    index_max: 500
+    color: "#C00000"
+
+breakpoints:
+  pm25:
+    - b_low: 0.0
+      b_high: 30.0
+      i_low: 0
+      i_high: 50
+      category: "Good"
+    - b_low: 31.0
+      b_high: 60.0
+      i_low: 51
+      i_high: 100
+      category: "Satisfactory"
+    - b_low: 61.0
+      b_high: 90.0
+      i_low: 101
+      i_high: 200
+      category: "Moderate"
+    - b_low: 91.0
+      b_high: 120.0
+      i_low: 201
+      i_high: 300
+      category: "Poor"
+    - b_low: 121.0
+      b_high: 250.0
+      i_low: 301
+      i_high: 400
+      category: "Very Poor"
+    - b_low: 251.0
+      b_high: 500.0
+      i_low: 401
+      i_high: 500
+      category: "Severe"
+  pm10:
+    - b_low: 0.0
+      b_high: 50.0
+      i_low: 0
+      i_high: 50
+      category: "Good"
+    - b_low: 51.0
+      b_high: 100.0
+      i_low: 51
+      i_high: 100
+      category: "Satisfactory"
+    - b_low: 101.0
+      b_high: 250.0
+      i_low: 101
+      i_high: 200
+      category: "Moderate"
+    - b_low: 251.0
+      b_high: 350.0
+      i_low: 201
+      i_high: 300
+      category: "Poor"
+    - b_low: 351.0
+      b_high: 430.0
+      i_low: 301
+      i_high: 400
+      category: "Very Poor"
+    - b_low: 431.0
+      b_high: 600.0
+      i_low: 401
+      i_high: 500
+      category: "Severe"

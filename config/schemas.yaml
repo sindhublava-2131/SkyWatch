@@ -224,3 +224,197 @@ hourly_rollup:
       type: double
       nullable: false
 
+station_statistics:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: station_id
+      type: string
+      nullable: false
+    - name: station_name
+      type: string
+      nullable: false
+    - name: parameter
+      type: string
+      nullable: false
+    - name: reading_count
+      type: integer
+      nullable: false
+    - name: average_value
+      type: double
+      nullable: false
+    - name: minimum_value
+      type: double
+      nullable: false
+    - name: maximum_value
+      type: double
+      nullable: false
+    - name: pollution_rank
+      type: integer
+      nullable: false
+    - name: generated_at_utc
+      type: string
+      nullable: false
+
+trends_hourly:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: station_id
+      type: string
+      nullable: false
+    - name: parameter
+      type: string
+      nullable: false
+    - name: hour_of_day
+      type: integer
+      nullable: false
+    - name: average_value
+      type: double
+      nullable: false
+    - name: reading_count
+      type: integer
+      nullable: false
+    - name: is_peak_hour
+      type: boolean
+      nullable: false
+
+trends_daily:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: station_id
+      type: string
+      nullable: false
+    - name: parameter
+      type: string
+      nullable: false
+    - name: day_of_week
+      type: string
+      nullable: false
+    - name: average_value
+      type: double
+      nullable: false
+    - name: reading_count
+      type: integer
+      nullable: false
+
+weather_correlation:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: station_id
+      type: string
+      nullable: false
+    - name: pollutant
+      type: string
+      nullable: false
+    - name: weather_variable
+      type: string
+      nullable: false
+    - name: pearson_r
+      type: double
+      nullable: true
+    - name: sample_count
+      type: integer
+      nullable: false
+    - name: confidence_tier
+      type: string
+      nullable: false
+
+cpcb_index:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: station_id
+      type: string
+      nullable: false
+    - name: station_name
+      type: string
+      nullable: false
+    - name: window_end_utc
+      type: string
+      nullable: false
+    - name: pm25_24h_avg
+      type: double
+      nullable: true
+    - name: pm25_subindex
+      type: double
+      nullable: true
+    - name: pm10_24h_avg
+      type: double
+      nullable: true
+    - name: pm10_subindex
+      type: double
+      nullable: true
+    - name: aqi_value
+      type: double
+      nullable: true
+    - name: aqi_category
+      type: string
+      nullable: true
+    - name: dominant_pollutant
+      type: string
+      nullable: true
+    - name: is_partial
+      type: boolean
+      nullable: false
+    - name: suppression_reason
+      type: string
+      nullable: true
+
+alerts:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: alert_id
+      type: string
+      nullable: false
+    - name: alert_type
+      type: string
+      nullable: false
+    - name: severity
+      type: string
+      nullable: false
+    - name: station_id
+      type: string
+      nullable: false
+    - name: station_name
+      type: string
+      nullable: false
+    - name: timestamp_utc
+      type: string
+      nullable: false
+    - name: message
+      type: string
+      nullable: false
+    - name: metric_value
+      type: double
+      nullable: true
+
+quality_report:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: run_id
+      type: string
+      nullable: false
+    - name: stage
+      type: string
+      nullable: false
+    - name: accepted_count
+      type: integer
+      nullable: false
+    - name: rejected_count
+      type: integer
+      nullable: false
+    - name: duplicate_count
+      type: integer
+      nullable: false
+    - name: reason_counts_json
+      type: string
+      nullable: false
+    - name: generated_at_utc
+      type: string
+      nullable: false
+
