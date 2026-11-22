@@ -1,0 +1,2 @@
+run_id,file_path,source,endpoint_url,http_status,sha256,record_count,collected_at_utc
+face70a655ec48feab93c48be8d94afc,data/raw/open-meteo/ingest_dt=2026-11-22/open-meteo_face70a655ec48feab93c48be8d94afc_c65d5e1c.json,open-meteo,https://api.open-meteo.com/v1/forecast,200,c65d5e1c030a62462202f29dacce656b0523320c9c6ba217c318dbdce5f02644,168,2026-11-22T19:26:57Z
