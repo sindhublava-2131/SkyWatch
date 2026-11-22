@@ -1,0 +1,65 @@
+{
+  "schema_version": "2.0",
+  "entity": "clean_air_quality",
+  "format": "csv",
+  "delimiter": ",",
+  "has_header": false,
+  "columns": [
+    {
+      "name": "record_key",
+      "type": "string"
+    },
+    {
+      "name": "station_id",
+      "type": "string"
+    },
+    {
+      "name": "station_name",
+      "type": "string"
+    },
+    {
+      "name": "latitude",
+      "type": "double"
+    },
+    {
+      "name": "longitude",
+      "type": "double"
+    },
+    {
+      "name": "sensor_id",
+      "type": "string"
+    },
+    {
+      "name": "parameter",
+      "type": "string"
+    },
+    {
+      "name": "value",
+      "type": "double"
+    },
+    {
+      "name": "unit",
+      "type": "string"
+    },
+    {
+      "name": "measurement_time_utc",
+      "type": "string"
+    },
+    {
+      "name": "ingestion_time_utc",
+      "type": "string"
+    },
+    {
+      "name": "source",
+      "type": "string"
+    },
+    {
+      "name": "is_valid",
+      "type": "boolean"
+    },
+    {
+      "name": "reject_reason",
+      "type": "string"
+    }
+  ]
+}

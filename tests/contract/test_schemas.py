@@ -19,6 +19,9 @@ def test_schemas_yaml_exists_and_valid():
     assert "air_quality" in schemas
     assert "weather" in schemas
     assert "manifest" in schemas
+    assert "clean_air_quality" in schemas
+    assert "station_stats" in schemas
+    assert "hourly_rollup" in schemas
 
 
 def test_air_quality_schema_contract():
@@ -141,3 +144,65 @@ def test_validate_record_dict():
     is_valid, reason = validate_record_dict(manifest_rec, "manifest")
     assert is_valid is False
     assert "got bool" in reason
+
+
+def test_clean_air_quality_schema_contract():
+    caq = get_schema("clean_air_quality")
+    assert caq["partition_key"] == "event_dt"
+    assert caq["has_header"] is False
+
+    columns = get_column_names("clean_air_quality")
+    expected_cols = [
+        "record_key",
+        "station_id",
+        "station_name",
+        "latitude",
+        "longitude",
+        "sensor_id",
+        "parameter",
+        "value",
+        "unit",
+        "measurement_time_utc",
+        "ingestion_time_utc",
+        "source",
+        "is_valid",
+        "reject_reason",
+    ]
+    assert columns == expected_cols
+
+
+def test_station_stats_schema_contract():
+    ss = get_schema("station_stats")
+    assert ss["partition_key"] == "event_dt"
+    assert ss["has_header"] is False
+
+    columns = get_column_names("station_stats")
+    expected_cols = [
+        "station_id",
+        "parameter",
+        "date",
+        "reading_count",
+        "average_value",
+        "minimum_value",
+        "maximum_value",
+    ]
+    assert columns == expected_cols
+
+
+def test_hourly_rollup_schema_contract():
+    hr = get_schema("hourly_rollup")
+    assert hr["partition_key"] == "event_dt"
+    assert hr["has_header"] is False
+
+    columns = get_column_names("hourly_rollup")
+    expected_cols = [
+        "station_id",
+        "parameter",
+        "bucket_start_utc",
+        "reading_count",
+        "average_value",
+        "minimum_value",
+        "maximum_value",
+    ]
+    assert columns == expected_cols
+

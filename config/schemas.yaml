@@ -121,3 +121,106 @@ manifest:
     - name: collected_at_utc
       type: string
       nullable: false
+
+clean_air_quality:
+  partition_key: "event_dt"
+  delimiter: ","
+  has_header: false
+  columns:
+    - name: record_key
+      type: string
+      nullable: false
+    - name: station_id
+      type: string
+      nullable: false
+    - name: station_name
+      type: string
+      nullable: false
+    - name: latitude
+      type: double
+      nullable: false
+    - name: longitude
+      type: double
+      nullable: false
+    - name: sensor_id
+      type: string
+      nullable: false
+    - name: parameter
+      type: string
+      nullable: false
+    - name: value
+      type: double
+      nullable: false
+    - name: unit
+      type: string
+      nullable: false
+    - name: measurement_time_utc
+      type: string
+      nullable: false
+    - name: ingestion_time_utc
+      type: string
+      nullable: false
+    - name: source
+      type: string
+      nullable: false
+    - name: is_valid
+      type: boolean
+      nullable: false
+    - name: reject_reason
+      type: string
+      nullable: true
+
+station_stats:
+  partition_key: "event_dt"
+  delimiter: ","
+  has_header: false
+  columns:
+    - name: station_id
+      type: string
+      nullable: false
+    - name: parameter
+      type: string
+      nullable: false
+    - name: date
+      type: string
+      nullable: false
+    - name: reading_count
+      type: integer
+      nullable: false
+    - name: average_value
+      type: double
+      nullable: false
+    - name: minimum_value
+      type: double
+      nullable: false
+    - name: maximum_value
+      type: double
+      nullable: false
+
+hourly_rollup:
+  partition_key: "event_dt"
+  delimiter: ","
+  has_header: false
+  columns:
+    - name: station_id
+      type: string
+      nullable: false
+    - name: parameter
+      type: string
+      nullable: false
+    - name: bucket_start_utc
+      type: string
+      nullable: false
+    - name: reading_count
+      type: integer
+      nullable: false
+    - name: average_value
+      type: double
+      nullable: false
+    - name: minimum_value
+      type: double
+      nullable: false
+    - name: maximum_value
+      type: double
+      nullable: false
+

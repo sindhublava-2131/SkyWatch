@@ -66,3 +66,7 @@ data/.backfill_checkpoint.json
 .idea/
 *.swp
 *.swo
+
+# Graphicle local engine
+.graphicle/
+
