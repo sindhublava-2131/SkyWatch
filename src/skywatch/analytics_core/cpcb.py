@@ -129,17 +129,17 @@ def classify(
     if val > 500.0:
         return "Severe"
 
-    if breakpoints is None:
-        try:
-            breakpoints = load_breakpoints()
-            categories = breakpoints.get("categories", [])
-            for cat in categories:
-                i_min = float(cat["index_min"])
-                i_max = float(cat["index_max"])
-                if i_min <= val <= i_max:
-                    return str(cat["name"])
-        except Exception:
-            pass
+    bp = breakpoints if breakpoints is not None else load_breakpoints()
+    try:
+        categories = bp.get("categories", [])
+        for cat in categories:
+            i_min = float(cat["index_min"])
+            i_max = float(cat["index_max"])
+            # Continuous boundary match across fractional gaps
+            if i_min <= val <= i_max or (val < i_min and val >= i_min - 1.0):
+                return str(cat["name"])
+    except Exception:
+        pass
 
     # Standard fallback intervals
     if val <= 50.0:
