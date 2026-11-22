@@ -2,4 +2,7 @@
 
 Before working, open and follow the canonical SkyWatch project rules in [`AGENTS.md`](../AGENTS.md). They define the required project context, Graphicle coverage and impact review, safe change process, engineering constraints, and verification/reporting expectations.
 
+### Mandatory Git Branching & CI/CD Rule:
+Commit all changes to a new branch (never commit working code directly to `main`). For each phase completion, if the CI/CD pipeline and test suite are a success, merge the branch into `main`.
+
 Do not duplicate or silently override that policy here. These instructions guide Copilot behavior; they do not prove that a particular host or session loaded or followed them.
