@@ -67,9 +67,9 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 5. Synthetic scale benchmark (`make_synthetic.py` & `run_scale_benchmark.py`) tests runtime performance across 1× (50k), 10× (500k), and 100× (5M) volume in local and report modes.
 
 #### Plans
-- [ ] 03-01: Core analytical functions (`cpcb.py`, `freshness.py`), sidecar schema verification, and Spark common configuration (`get_spark`, deterministic shuffle partitions). `[SPK-01, SPK-04, SPK-06]`
-- [ ] 03-02: Spark analytics jobs: station statistics, trend analysis, weather correlation with confidence tiers, 24h rolling CPCB index with suppression codes, alert engine, and data quality reporter. `[SPK-02, SPK-03, SPK-05, SPK-07, SPK-08]`
-- [ ] 03-03: Export publisher to `output/published/` with atomic directory staging and synthetic scale benchmarking suite (1×, 10×, 100×). `[SPK-09, SPK-10]`
+- [x] 03-01: Core analytical functions (`cpcb.py`, `freshness.py`), sidecar schema verification, and Spark common configuration (`get_spark`, deterministic shuffle partitions). `[SPK-01, SPK-04, SPK-06]`
+- [x] 03-02: Spark analytics jobs: station statistics, trend analysis, weather correlation with confidence tiers, 24h rolling CPCB index with suppression codes, alert engine, and data quality reporter. `[SPK-02, SPK-03, SPK-05, SPK-07, SPK-08]`
+- [x] 03-03: Export publisher to `output/published/` with atomic directory staging and synthetic scale benchmarking suite (1×, 10×, 100×). `[SPK-09, SPK-10]`
 
 ---
 
@@ -100,5 +100,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Foundation, Data Ingestion & Storage Architecture | 3/3 | Completed | 2026-11-22 |
 | 2. Big Data ETL with Apache Pig & Hadoop HDFS | 2/2 | Completed | 2026-11-22 |
-| 3. Analytics Engine with Apache Spark & Scale Benchmarking | 0/3 | Ready to execute | - |
-| 4. Interactive Dashboard, CLI Integration & Dual-Profile Verification | 0/3 | Not started | - |
+| 3. Analytics Engine with Apache Spark & Scale Benchmarking | 3/3 | Completed | 2026-11-23 |
+| 4. Interactive Dashboard, CLI Integration & Dual-Profile Verification | 0/3 | Ready to plan | - |
