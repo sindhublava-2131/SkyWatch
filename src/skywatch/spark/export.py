@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -124,17 +123,13 @@ def export_published_dataset(
             json.dump(schema_meta, f, indent=2)
 
         # 4. Atomic directory swap
-        if os.name == "nt":
-            # Windows atomic replacement pattern via backup
-            if target_dir.exists():
-                _safe_remove(backup_dir)
-                target_dir.rename(backup_dir)
-                staging_dir.rename(target_dir)
-                _safe_remove(backup_dir)
-            else:
-                staging_dir.rename(target_dir)
+        if target_dir.exists():
+            _safe_remove(backup_dir)
+            target_dir.rename(backup_dir)
+            staging_dir.rename(target_dir)
+            _safe_remove(backup_dir)
         else:
-            os.replace(staging_dir, target_dir)
+            staging_dir.rename(target_dir)
 
         return target_dir
 
