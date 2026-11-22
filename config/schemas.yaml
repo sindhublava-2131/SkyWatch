@@ -1,0 +1,123 @@
+version: "2.0"
+
+air_quality:
+  partition_key: "ingest_dt"
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: record_key
+      type: string
+      nullable: false
+    - name: station_id
+      type: string
+      nullable: false
+    - name: station_name
+      type: string
+      nullable: false
+    - name: latitude
+      type: double
+      nullable: false
+    - name: longitude
+      type: double
+      nullable: false
+    - name: sensor_id
+      type: string
+      nullable: false
+    - name: parameter
+      type: string
+      nullable: false
+    - name: value
+      type: double
+      nullable: true
+    - name: unit
+      type: string
+      nullable: false
+    - name: measurement_time_utc
+      type: string
+      nullable: false
+    - name: ingestion_time_utc
+      type: string
+      nullable: false
+    - name: source
+      type: string
+      nullable: false
+    - name: is_valid
+      type: boolean
+      nullable: false
+    - name: reject_reason
+      type: string
+      nullable: true
+
+weather:
+  partition_key: "ingest_dt"
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: record_key
+      type: string
+      nullable: false
+    - name: location_id
+      type: string
+      nullable: false
+    - name: latitude
+      type: double
+      nullable: false
+    - name: longitude
+      type: double
+      nullable: false
+    - name: temperature_c
+      type: double
+      nullable: true
+    - name: humidity_pct
+      type: double
+      nullable: true
+    - name: wind_speed
+      type: double
+      nullable: true
+    - name: wind_unit
+      type: string
+      nullable: false
+    - name: precipitation_mm
+      type: double
+      nullable: true
+    - name: measurement_time_utc
+      type: string
+      nullable: false
+    - name: ingestion_time_utc
+      type: string
+      nullable: false
+    - name: source
+      type: string
+      nullable: false
+    - name: data_kind
+      type: string
+      nullable: false
+
+manifest:
+  delimiter: ","
+  has_header: true
+  columns:
+    - name: run_id
+      type: string
+      nullable: false
+    - name: file_path
+      type: string
+      nullable: false
+    - name: source
+      type: string
+      nullable: false
+    - name: endpoint_url
+      type: string
+      nullable: false
+    - name: http_status
+      type: integer
+      nullable: false
+    - name: sha256
+      type: string
+      nullable: false
+    - name: record_count
+      type: integer
+      nullable: false
+    - name: collected_at_utc
+      type: string
+      nullable: false

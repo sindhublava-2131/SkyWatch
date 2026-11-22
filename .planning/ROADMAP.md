@@ -14,7 +14,7 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 
 ## Phases
 
-- [ ] **Phase 1: Foundation, Data Ingestion & Storage Architecture** - Implement project structure, dual profiles (`modern`/`lab`), schemas, OpenAQ/Open-Meteo collectors with fixture fallbacks, validation, deduplication, local and HDFS storage layout, and CLI ingestion commands.
+- [x] **Phase 1: Foundation, Data Ingestion & Storage Architecture** - Implement project structure, dual profiles (`modern`/`lab`), schemas, OpenAQ/Open-Meteo collectors with fixture fallbacks, validation, deduplication, local and HDFS storage layout, and CLI ingestion commands.
 - [ ] **Phase 2: Big Data ETL with Apache Pig & Hadoop HDFS** - Implement Apache Pig data cleansing, distinct deduplication, type casting, sidecar schema generation, daily aggregations, and hourly rollups on HDFS with profile parameterization.
 - [ ] **Phase 3: Analytics Engine with Apache Spark & Scale Benchmarking** - Implement Spark station statistics, temporal trends, weather joins, Pearson correlations with confidence tiers, 24h rolling CPCB PM-based AQI index, alert engine, export publishing, and 1×/10×/100× scale benchmark.
 - [ ] **Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification** - Implement Streamlit multi-page dashboard, unified CLI (`skywatch`), smoke tests (`make smoke`), profile rollback drill, end-to-end test suite (≥80% coverage on core logic), and project documentation.
@@ -33,9 +33,9 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 5. Dual execution profile scripts (`modern.env` and `lab.env`) load environment variables and validate runtime prerequisites without error.
 
 #### Plans
-- [ ] 01-01: Project scaffolding, dual-profile environment configs, schema definitions (`schemas.yaml`), logging contract (`run_id`), and data contracts. `[HYG-01, HYG-02, OPS-06, OPS-07]`
-- [ ] 01-02: OpenAQ v3 and Open-Meteo API clients, mock fixtures, station discovery, validation logic, deduplication, and raw storage. `[ING-01, ING-02, ING-03, ING-04, HYG-03, HYG-04, HYG-05]`
-- [ ] 01-03: Local storage, HDFS partitioned storage adapter (`/raw/` & `/normalized/` with `ingest_dt`; `/clean/` & `/analytics/` with `event_dt`), atomic watermark commits, backfill chunking, and offline mode. `[ING-05, ING-06, HYG-06, HYG-07]`
+- [x] 01-01: Project scaffolding, dual-profile environment configs, schema definitions (`schemas.yaml`), logging contract (`run_id`), and data contracts. `[HYG-01, HYG-02, OPS-06, OPS-07]`
+- [x] 01-02: OpenAQ v3 and Open-Meteo API clients, mock fixtures, station discovery, validation logic, deduplication, and raw storage. `[ING-01, ING-02, ING-03, ING-04, HYG-03, HYG-04, HYG-05]`
+- [x] 01-03: Local storage, HDFS partitioned storage adapter (`/raw/` & `/normalized/` with `ingest_dt`; `/clean/` & `/analytics/` with `event_dt`), atomic watermark commits, backfill chunking, and offline mode. `[ING-05, ING-06, HYG-06, HYG-07]`
 
 ---
 
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation, Data Ingestion & Storage Architecture | 0/3 | Not started | - |
+| 1. Foundation, Data Ingestion & Storage Architecture | 3/3 | Completed | 2026-11-22 |
 | 2. Big Data ETL with Apache Pig & Hadoop HDFS | 0/2 | Not started | - |
 | 3. Analytics Engine with Apache Spark & Scale Benchmarking | 0/3 | Not started | - |
 | 4. Interactive Dashboard, CLI Integration & Dual-Profile Verification | 0/3 | Not started | - |
