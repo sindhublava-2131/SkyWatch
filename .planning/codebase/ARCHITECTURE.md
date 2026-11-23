@@ -1,310 +1,190 @@
-<!-- refreshed: 2026-11-22 -->
+---
+last_mapped_commit: 831a73a6e8025d4970ff7b506be5de6d304b4c61
+last_mapped_at: 2026-11-23
+---
+<!-- refreshed: 2026-11-23 -->
+
 # Architecture
 
-**Analysis Date:** 2026-11-22
+**Analysis Date:** 2026-11-23
 
 ## System Overview
 
-SkyWatch is a single-process, batch-oriented ingestion pipeline. Phase 1 (the only implemented phase) collects OpenAQ v3 air-quality readings and Open-Meteo weather data, normalizes them to config-defined schemas, validates and deduplicates records, writes atomic partitioned CSV files, mirrors partitions to HDFS (or a local fallback), and advances per-sensor watermarks.
+SkyWatch is an end-to-end Big Data analytics and environmental intelligence platform for Bengaluru's air quality and meteorology. The system spans ingestion, distributed batch ETL, analytics, and publication tiers with dual-profile execution (`modern` and `lab` rollback) and a concrete scale benchmark.
 
 ```text
-┌──────────────────────────────────────────────────────────────────────┐
-│ Entry points                                                          │
-│ `skywatch` console script · `python -m skywatch.cli`                  │
-│ `scripts/cron_collect.sh` · `.github/workflows/scheduled-collect.yml` │
-└────────────────────────────────┬─────────────────────────────────────┘
-                                 ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│ Orchestration — `src/skywatch/collector/collector.py`                 │
-│ `IngestionOrchestrator`: incremental collection + chunked backfill    │
-└───────┬──────────────────┬───────────────────┬───────────────────────┘
-        ▼                  ▼                   ▼
-┌───────────────┐  ┌──────────────────┐  ┌─────────────────────────────┐
-│ Collector     │  │ Data hygiene     │  │ Storage                     │
-│ OpenAQ client │  │ normalize →      │  │ raw manifest · local CSV    │
-│ Weather client│  │ validate →       │  │ HDFS adapter · watermarks   │
-│ Discovery     │  │ deduplicate      │  │ checkpoint                  │
-└───────┬───────┘  └────────┬─────────┘  └──────────────┬──────────────┘
-        ▼                   ▼                           ▼
-  OpenAQ v3 API       `config/schemas.yaml`       `data/raw/`,
-  Open-Meteo API      validation rules             `data/normalized/`,
-  or `tests/fixtures`                              `data/local_hdfs/`,
-                                                   `data/.watermarks.json`
-```
-
-Planned downstream layers (not implemented):
-
-```text
-normalized CSV
-  → Phase 2: Apache Pig clean / distinct / rollup on HDFS   (ROADMAP.md:18,42-54)
-  → Phase 3: Spark analytics, weather join, CPCB PM index  (ROADMAP.md:19,58-72)
-  → `output/published/` CSV + Parquet
-  → Phase 4: Streamlit dashboard                           (ROADMAP.md:20,76-90)
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Ingestion Tier (Phase 1)                                                                │
+│ OpenAQ v3 API + Open-Meteo API ──► IngestionOrchestrator ──► Normalization & Validation│
+│                                                                │                       │
+│                                                      Raw Audit Manifest &              │
+│                                                      Partitioned CSV (ingest_dt)       │
+└────────────────────────────────────────┬───────────────────────────────────────────────┘
+                                         ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Big Data ETL Tier - Apache Pig & HDFS (Phase 2)                                         │
+│ pig/clean_air_quality.pig ──► Headerless clean CSV (event_dt) + _schema.json           │
+│ pig/station_stats.pig     ──► Daily Station Aggregations (event_dt)                    │
+│ pig/hourly_rollup.pig     ──► Hourly Bucketed Rollups (event_dt)                       │
+└────────────────────────────────────────┬───────────────────────────────────────────────┘
+                                         ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Analytics & Publishing Tier - Apache Spark (Phase 3)                                    │
+│ CPCB 24-hr Rolling Index  ──► cpcb_index (AQI sub-index & suppression reason codes)    │
+│ Weather Correlation Engine ──► weather_correlation (Hourly joins, Pearson r)            │
+│ Station & Trend Analytics ──► station_statistics, trends_hourly, trends_daily          │
+│ Health & Telemetry Alerts ──► alerts (CPCB threshold breaches & rolling median spikes) │
+│ Quality Diagnostics       ──► quality_report (Stage-by-stage auditing)                 │
+│                                        │                                               │
+│                                        ▼                                               │
+│                       output/published/ (Atomic Staging Swap: Parquet + CSV + Schema)   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Component Responsibilities
 
-| Component | Responsibility | File |
-|-----------|----------------|------|
-| CLI | Parse subcommands, construct clients/orchestrator, print JSON summaries, map failures to exit code 1 | `src/skywatch/cli.py` |
-| Ingestion orchestrator | Coordinate discovery, API calls, raw preservation, normalization, validation, deduplication, storage, watermarks, backfill checkpoints | `src/skywatch/collector/collector.py` |
-| OpenAQ client | OpenAQ v3 HTTP calls, retry/backoff, 429 handling, auth abort, offline fixtures | `src/skywatch/collector/openaq_client.py` |
-| Weather client | Open-Meteo forecast/archive calls, retry/backoff, offline fixtures | `src/skywatch/collector/weather_client.py` |
-| Station discovery | Filter Bengaluru bbox locations to active stations with PM2.5/PM10 sensors, atomically write `config/stations.json` | `src/skywatch/collector/discovery.py` |
-| Schema loader | Load/cache `config/schemas.yaml`, expose ordered columns and record type checks | `src/skywatch/data/schemas.py` |
-| Normalization | Map OpenAQ records and Open-Meteo parallel arrays to canonical row dicts with UTC timestamps | `src/skywatch/data/normalization.py` |
-| Validation | Required-field, numeric, ceiling, unit, and timestamp hygiene checks returning structured reject codes | `src/skywatch/data/validation.py` |
-| Deduplication | Deterministic SHA-256 record keys and in-batch dedupe | `src/skywatch/data/deduplication.py` |
-| Raw manifest | Atomically persist untouched JSON responses and append audit metadata to `_manifest.csv` | `src/skywatch/storage/raw_manifest.py` |
-| Local storage | Atomic file replacement and schema-ordered partitioned CSV writing | `src/skywatch/storage/local_storage.py` |
-| HDFS adapter | Safemode check, staging-then-rename upload, offline fallback cache | `src/skywatch/storage/hdfs_storage.py` |
-| Watermark manager | Per-sensor high-water marks with in-memory updates and atomic commit | `src/skywatch/storage/watermark.py` |
-| Profile loader | Read `profiles/{modern,lab}.env`, expose runtime paths/thresholds, validate installed runtimes | `src/skywatch/pipeline/profile.py` |
-| Logging | JSON logs, `run_id` context propagation, credential redaction | `src/skywatch/pipeline/logging.py` |
+1. **Collector & Discovery (`src/skywatch/collector/`):**
+   - `openaq_client.py`: Synchronous HTTP client for OpenAQ API v3 with backoff, jitter, and offline test mocks.
+   - `weather_client.py`: Fetches hourly meteorological data (temperature, humidity, wind, precipitation) from Open-Meteo.
+   - `discovery.py`: Discovers active CAAQMS monitoring stations within Bengaluru's bounding box `[77.45, 12.83, 77.75, 13.12]`.
+   - `collector.py`: `IngestionOrchestrator` coordinates incremental collection, latest snapshots, and chunked historical backfills.
+
+2. **Data Hygiene & Contracts (`src/skywatch/data/`):**
+   - `schemas.py`: Loads and verifies datasets against `config/schemas.yaml`.
+   - `normalization.py`: Maps external JSON structures into canonical flat dictionaries with strict types.
+   - `validation.py`: Enforces numeric physical ranges (e.g. PM2.5 between 0 and 1000 µg/m³) and marks invalid records.
+   - `deduplication.py`: Removes duplicate records within a batch based on composite primary keys (`record_key`).
+
+3. **Storage Tier (`src/skywatch/storage/`):**
+   - `local_storage.py`: Writes atomic CSV partitions with header management and temporary file swapping.
+   - `raw_manifest.py`: Appends raw payload audit metadata (SHA-256, HTTP status, record count) to `data/raw/_manifest.csv`.
+   - `watermark.py`: `WatermarkManager` stores high-water marks in `data/.watermarks.json` to prevent duplicate ingestion.
+   - `hdfs_storage.py`: `HDFSStorageAdapter` mirrors partitions to HDFS or local fallback `data/local_hdfs/`.
+
+4. **Batch ETL with Apache Pig (`pig/` and `src/skywatch/pipeline/pig_runner.py`):**
+   - `pig/clean_air_quality.pig`: Filters `is_valid == true`, deduplicates, and splits normalized data into event-date partitions (`event_dt=YYYY-MM-DD`).
+   - `pig/station_stats.pig`: Groups clean readings by `(station_id, parameter, date)` to compute count, min, max, and avg.
+   - `pig/hourly_rollup.pig`: Groups clean readings by `(station_id, parameter, bucket_start_utc)`.
+   - `pig_runner.py`: Profile-aware orchestrator that verifies Pig/Hadoop availability, pre-clears target directories, executes Pig Latin, attaches sidecar `_schema.json` files, and provides a pure-Python fallback.
+
+5. **Analytics Core (`src/skywatch/analytics_core/`):**
+   - `cpcb.py`: Implements the official Central Pollution Control Board (CPCB) 24-hour linear interpolation algorithm for PM2.5 and PM10 sub-indices, 16-hour minimum valid data rule, health classification (Good, Satisfactory, Moderate, Poor, Very Poor, Severe), and suppression reason codes (`INSUFFICIENT_HOURLY_DATA`, `MISSING_POLLUTANT`).
+   - `freshness.py`: Classifies station reporting telemetry as `FRESH` (< 3h), `STALE` (3-24h), or `OFFLINE` (> 24h).
+
+6. **Analytics Engine with Apache Spark (`src/skywatch/spark/` and `src/skywatch/pipeline/spark_runner.py`):**
+   - `common.py`: Configures `SparkSession` with modern or lab tuning properties and loads headerless datasets via sidecar schemas.
+   - `index_job.py`: Computes 24-hour rolling CPCB AQI sub-indices across sliding windows.
+   - `weather_analysis.py`: Joins air quality rollups with weather metrics and computes the Pearson correlation matrix ($r$).
+   - `station_statistics.py`: Computes aggregate station statistics and rankings across Bengaluru.
+   - `trend_analysis.py`: Computes diurnal (hourly) and day-of-week trends.
+   - `alert_engine.py`: Generates emergency/warning health alerts (AQI > 200) and telemetry alerts (stale/offline stations, 3.0x rolling median spikes).
+   - `quality_report.py`: Aggregates audit metrics (accepted, rejected, duplicates, reason breakdown) across pipeline runs.
+   - `export.py`: Publishes datasets via atomic directory staging swap protocol, writing dual Parquet, CSV, and `_schema.json`.
+   - `spark_runner.py`: End-to-end analytics orchestrator with standalone Python fallback for zero-JVM testing.
+
+7. **Pipeline Orchestration & Profiles (`src/skywatch/pipeline/`):**
+   - `profile.py`: Loads environment configurations (`modern.env` vs `lab.env`), validates Java/Hadoop/Spark runtimes, and returns structured configuration.
+   - `logging.py`: Structured JSON logging with unique `run_id` tracking.
 
 ## Pattern Overview
 
-**Overall:** Layered ingestion pipeline with adapter boundaries and config-driven data contracts.
-
-**Key Characteristics:**
-- **Synchronous and single-process.** Stations and sensors are polled sequentially in one Python process; there is no queue, worker pool, or async I/O.
-- **Filesystem as system of record.** There is no database. Raw JSON, normalized CSV, watermarks, and backfill checkpoints are all files under `data/`.
-- **Config-as-contract.** `config/schemas.yaml` defines column order and types for CSV output and validation; `config/stations.json` defines the station/sensor universe; `profiles/*.env` defines runtime paths and freshness thresholds.
-- **Offline-first testability.** Every client accepts an `offline` flag and loads JSON fixtures from `tests/fixtures/`; HDFS upload transparently falls back to `data/local_hdfs/`.
-- **Atomic replacement everywhere state matters.** Raw files, normalized CSVs, station discovery output, watermarks, and backfill checkpoints are written to a temp file in the destination directory, flushed/fsynced, then `os.replace`d.
-- **Deterministic identity.** Every normalized row carries a SHA-256 `record_key` derived from natural keys, making dedupe independent of input order.
+- **Dual-Profile Runtime:** Decouples pipeline logic from environment specifics; switchable via `scripts/use_profile.sh modern` or `lab` without code changes.
+- **Sidecar Schema Contracts:** Solves Pig's headerless CSV output limitation by generating a sidecar `_schema.json` alongside data files, allowing downstream PySpark/Arrow jobs to ingest clean data with explicit column typing.
+- **Atomic Directory Staging Swap:** Prevents consumers from reading partial or in-progress batch writes. Jobs write to a temporary staging folder (`<output>.__staging_<uuid>`) and execute an atomic directory rename into place.
+- **Idempotent Ingestion & Resumption:** High-water mark tracking (`data/.watermarks.json`) ensures re-running collection does not duplicate records; chunked backfill tracks progress via `.backfill_checkpoint.json`.
+- **Pure-Python Standalone Fallbacks:** Enables complete unit and integration test verification on developer machines without requiring active Hadoop or Spark clusters.
 
 ## Layers
 
-**Entry / Interface Layer:**
-- Purpose: Translate user or scheduler intent into orchestrator calls.
-- Location: `src/skywatch/cli.py`, `scripts/cron_collect.sh`, `.github/workflows/scheduled-collect.yml`
-- Contains: argparse parser, subcommand dispatch, top-level exception handling, JSON summary printing.
-- Depends on: `skywatch.collector.*`, `skywatch.pipeline.logging`.
-- Used by: operators, cron, GitHub Actions.
-
-**Orchestration Layer:**
-- Purpose: Own the end-to-end sequence and side-effect ordering.
-- Location: `src/skywatch/collector/collector.py`
-- Contains: `IngestionOrchestrator`, station loading fallback, incremental loop, latest-mode loop, weather fetch, dedupe, partition writes, HDFS upload, watermark commit, chunked backfill loop.
-- Depends on: collector clients, data modules, storage modules, logging.
-- Used by: `cli.py`, integration tests.
-
-**Collection / Source Adapter Layer:**
-- Purpose: Isolate external API behavior, retries, and fixture fallbacks.
-- Location: `src/skywatch/collector/openaq_client.py`, `src/skywatch/collector/weather_client.py`, `src/skywatch/collector/discovery.py`
-- Contains: HTTP session management, exponential backoff, `AuthenticationError`, `get_locations`, `get_latest`, `get_measurements`, `get_hours`, `get_forecast`, `get_archive`, `discover_stations`.
-- Depends on: `requests`, `skywatch.pipeline.logging`.
-- Used by: orchestrator and CLI `discover`.
-
-**Data Hygiene / Domain Layer:**
-- Purpose: Convert heterogeneous payloads into canonical rows and decide validity/identity.
-- Location: `src/skywatch/data/`
-- Contains: schema loading and record checks (`schemas.py`), feed normalization (`normalization.py`), hygiene rules (`validation.py`), SHA-256 keys and batch dedupe (`deduplication.py`).
-- Depends on: `pyyaml`, standard library.
-- Used by: orchestrator, local storage (schema column order), tests.
-
-**Storage / Persistence Layer:**
-- Purpose: Persist raw payloads, normalized partitions, HDFS copies, and incremental state.
-- Location: `src/skywatch/storage/`
-- Contains: `save_raw_response`, `atomic_write_file`, `write_normalized_csv`, `HDFSStorageAdapter`, `WatermarkManager`.
-- Depends on: `skywatch.data.schemas`, `skywatch.pipeline.logging`, `hdfs` CLI, filesystem.
-- Used by: orchestrator.
-
-**Cross-Cutting / Operations Layer:**
-- Purpose: Provide profile configuration and structured observability.
-- Location: `src/skywatch/pipeline/`
-- Contains: `load_profile`, `validate_environment`, `ProfileConfig`, `get_logger`, `run_context`, `redact_sensitive`, `JsonPipelineFormatter`.
-- Depends on: `python-dotenv`, standard library.
-- Used by: every other layer.
-
-**Planned Layers (absent):**
-- Pig ETL (`pig/`, Pig runner) — Phase 2, not present. See `.planning/ROADMAP.md:18` and `:42-54`.
-- Spark analytics (`src/skywatch/spark/`, `analytics_core/`) — Phase 3, not present. See `.planning/ROADMAP.md:19` and `:58-72`.
-- Streamlit dashboard (`src/skywatch/dashboard/`, `output/published/`) — Phase 4, not present. See `.planning/ROADMAP.md:20` and `:76-90`.
+```text
+┌────────────────────────────────────────────────────────┐
+│ Presentation & CLI Layer                               │
+│ - skywatch cli (discover, collect, backfill)           │
+│ - Planned: Phase 4 Streamlit Dashboard & unified CLI   │
+├────────────────────────────────────────────────────────┤
+│ Orchestration & Pipeline Runners                       │
+│ - pig_runner.py, spark_runner.py, scripts/*.sh         │
+│ - logging.py (JSONFormatter, run_id context)           │
+├────────────────────────────────────────────────────────┤
+│ Processing & Analytics Engine                          │
+│ - Apache Pig scripts (ETL, deduplication, rollups)     │
+│ - Apache Spark jobs (CPCB AQI, Pearson r, alerts)      │
+│ - analytics_core (pure mathematical logic)             │
+├────────────────────────────────────────────────────────┤
+│ Storage & Normalization Tier                           │
+│ - local_storage.py, hdfs_storage.py, raw_manifest.py   │
+│ - schemas.py, validation.py, normalization.py          │
+├────────────────────────────────────────────────────────┤
+│ Ingestion & Transport Tier                             │
+│ - openaq_client.py, weather_client.py, discovery.py    │
+└────────────────────────────────────────────────────────┘
+```
 
 ## Data Flow
 
-### Incremental Collection (default)
+### 1. Ingestion Pipeline
 
-1. `cli.main` parses `collect --mode incremental` and constructs `IngestionOrchestrator` (`src/skywatch/cli.py:74-78`).
-2. `run_incremental_collection` opens a `run_context`, generating a UUID4 `run_id` used in logs and filenames (`src/skywatch/collector/collector.py:76-88`; `src/skywatch/pipeline/logging.py:43-51`).
-3. `_ensure_stations` loads `config/stations.json`, or calls `discover_stations` if the file is missing/unreadable (`src/skywatch/collector/collector.py:66-74`).
-4. For each station and each sensor, the orchestrator reads the sensor watermark. If absent, it defaults the lower bound to `now - 24h` (`src/skywatch/collector/collector.py:132-142`).
-5. `OpenAQClient.get_measurements` calls `/v3/sensors/{id}/measurements` with retry/backoff, or returns `tests/fixtures/sample_openaq_measurements.json` when offline (`src/skywatch/collector/openaq_client.py:131-148`).
-6. The untouched response is written atomically to `data/raw/openaq/ingest_dt=YYYY-MM-DD/openaq_{run_id}_{sha8}.json` and appended to `data/raw/_manifest.csv` (`src/skywatch/collector/collector.py:150-158`; `src/skywatch/storage/raw_manifest.py:33-112`).
-7. Each result is normalized into the canonical air-quality row, validated, and given a SHA-256 `record_key` (`src/skywatch/data/normalization.py:37-118`; `src/skywatch/data/validation.py:130-163`; `src/skywatch/data/deduplication.py:11-21`).
-8. The newest valid timestamp per sensor updates the in-memory watermark; nothing is persisted yet (`src/skywatch/collector/collector.py:162-178`; `src/skywatch/storage/watermark.py:49-68`).
-9. Weather is fetched for the fixed Bengaluru central point `(12.91, 77.61)` via `WeatherClient.get_forecast`, raw-preserved, and unrolled from parallel arrays into weather rows (`src/skywatch/collector/collector.py:182-199`; `src/skywatch/data/normalization.py:121-167`).
-10. Both streams are deduplicated in memory by `record_key` (`src/skywatch/collector/collector.py:201-203`; `src/skywatch/data/deduplication.py:36-62`).
-11. `write_normalized_csv` orders columns from `config/schemas.yaml`, writes to `data/normalized/{stream}/ingest_dt=YYYY-MM-DD/{stream}_{run_id}.csv`, and atomically replaces the target (`src/skywatch/storage/local_storage.py:62-87`).
-12. `HDFSStorageAdapter.upload_partition` checks `hdfs version` and NameNode safemode. If unavailable, it copies to `data/local_hdfs/...`; otherwise it stages under `/skywatch/_staging` and renames into `/skywatch/normalized/...` (`src/skywatch/storage/hdfs_storage.py:65-123`).
-13. `WatermarkManager.commit` atomically replaces `data/.watermarks.json` only after partition writes and HDFS attempts complete (`src/skywatch/collector/collector.py:226-227`; `src/skywatch/storage/watermark.py:70-99`).
-14. A summary dict (run id, stations polled, record/duplicate counts, CSV paths) is printed as JSON (`src/skywatch/collector/collector.py:229-240`; `src/skywatch/cli.py:76-78`).
+1. `skywatch collect --mode incremental` queries active stations from `config/stations.json`.
+2. For each station and sensor, `OpenAQClient` queries measurements since the stored watermark in `data/.watermarks.json`.
+3. Verbatim JSON responses are archived under `data/raw/` and logged to `data/raw/_manifest.csv`.
+4. Raw payloads are normalized into canonical flat records, validated against numeric bounds, deduplicated, and appended to `data/normalized/air_quality/ingest_dt=YYYY-MM-DD/`.
+5. Simultaneously, `WeatherClient` collects Bengaluru weather, normalizes it, and saves it to `data/normalized/weather/ingest_dt=YYYY-MM-DD/`.
+6. High-water marks in `data/.watermarks.json` are updated atomically.
 
-### Latest Mode
+### 2. Pig ETL Pipeline
 
-1. `collect --mode latest` calls `/v3/locations/{station_id}/latest` per station instead of per-sensor measurement windows (`src/skywatch/collector/collector.py:98-115`).
-2. Each result is normalized, validated, and immediately compared to the existing watermark; only newer valid records update the in-memory watermark (`src/skywatch/collector/collector.py:113-130`).
-3. Weather collection, dedupe, partition writes, HDFS upload, and watermark commit follow the same path as incremental mode.
+1. `pig_runner.py` triggers `pig/clean_air_quality.pig`.
+2. Reads normalized CSVs, discards invalid records (`is_valid == false`), performs distinct deduplication, and partitions into `data/clean/air_quality/event_dt=YYYY-MM-DD/` as headerless CSV.
+3. Attaches `_schema.json` to the output partition.
+4. Downstream Pig jobs (`station_stats.pig`, `hourly_rollup.pig`) compute initial aggregations.
 
-### Chunked Backfill
+### 3. Spark Analytics & Export Pipeline
 
-1. `cli.main` parses `backfill --start-date --end-date --chunk-days` and calls `run_chunked_backfill` (`src/skywatch/cli.py:80-88`).
-2. The orchestrator loads `data/.backfill_checkpoint.json` and skips chunk keys already listed in `completed_chunks` (`src/skywatch/collector/collector.py:255-276`).
-3. For each chunk, it fetches per-sensor measurements and Open-Meteo archive weather, preserving both raw payloads (`src/skywatch/collector/collector.py:282-329`).
-4. Records are normalized and deduplicated per chunk, then written to `ingest_dt={chunk_end}` partitions and uploaded to HDFS (`src/skywatch/collector/collector.py:331-339`).
-5. The chunk key is appended to the checkpoint, which is atomically replaced before advancing (`src/skywatch/collector/collector.py:341-358`).
-6. Backfill does **not** update sensor watermarks; it advances only the chunk checkpoint.
-
-### Station Discovery
-
-1. `discover` constructs `OpenAQClient` and calls `discover_stations` (`src/skywatch/cli.py:64-72`).
-2. The client queries `/v3/locations` with bbox `77.45,12.83,77.75,13.12` (`src/skywatch/collector/discovery.py:16-32`; `src/skywatch/collector/openaq_client.py:118-123`).
-3. Locations without coordinates or PM2.5/PM10 sensors are dropped; recency filtering uses `datetimeLast` unless offline (`src/skywatch/collector/discovery.py:37-90`).
-4. The station list is atomically written to `config/stations.json` (`src/skywatch/collector/discovery.py:94-112`).
-
-**State Management:**
-- **Watermarks:** `data/.watermarks.json`, keyed by `sensor_id`, holding `parameter`, `station_id`, `last_measurement_utc`, `last_run_id`, `records_ingested` (`src/skywatch/storage/watermark.py:20-99`).
-- **Backfill checkpoint:** `data/.backfill_checkpoint.json`, holding `completed_chunks` and `last_updated` (`src/skywatch/collector/collector.py:255-264`, `:341-355`).
-- **Schema cache:** process-global `_CACHED_SCHEMAS` in `src/skywatch/data/schemas.py:9-27`.
-- **Run identity:** `contextvars.ContextVar` in `src/skywatch/pipeline/logging.py:17-20`, scoped by `run_context`.
-- **No database, queue, or distributed state store.**
+1. `spark_runner.py` reads `data/clean/air_quality` using schema extracted from `_schema.json` and `data/normalized/weather`.
+2. Executes 6 analytical transformations:
+   - Rolling 24-hour CPCB AQI sub-index calculation with suppression reasoning.
+   - Hourly weather join and Pearson correlation matrix ($r$).
+   - Diurnal and daily temporal trend analysis.
+   - Station statistics and pollution rankings.
+   - Multi-tier alert generation (health thresholds + 3.0x rolling median spikes).
+   - Data quality stage-by-stage auditing report.
+3. Invokes `export_published_dataset()` to stage and atomically swap outputs into `output/published/` in dual Parquet and CSV formats with accompanying `_schema.json`.
 
 ## Key Abstractions
 
-**`record_key` (deterministic identity):**
-- Purpose: Stable dedupe key independent of payload order.
-- Formula: air quality = SHA-256 of `"{sensor_id}|{parameter.lower()}|{measurement_time_utc}"`; weather = SHA-256 of `"{location_id}|{measurement_time_utc}"`.
-- Files: `src/skywatch/data/deduplication.py:11-33`
-- Pattern: natural composite key → hash → row field `record_key` → in-batch `seen` set.
-
-**Schema contract (`config/schemas.yaml`):**
-- Purpose: Single source of truth for CSV column order, names, types, nullability, delimiter, and partition key.
-- Files: `config/schemas.yaml`; consumed by `src/skywatch/data/schemas.py:12-92` and `src/skywatch/storage/local_storage.py:70-79`.
-- Pattern: YAML → cached dict → `get_column_names` / `validate_record_dict`.
-
-**Atomic write protocol:**
-- Purpose: Prevent partial files from being observed.
-- Files: `src/skywatch/storage/local_storage.py:22-59`; also implemented inline in `src/skywatch/storage/raw_manifest.py:72-84`, `src/skywatch/storage/watermark.py:78-97`, `src/skywatch/collector/discovery.py:97-109`, `src/skywatch/collector/collector.py:344-355`.
-- Pattern: same-directory `NamedTemporaryFile` → `write` → `flush` → `fsync` → `os.replace` → cleanup on exception.
-
-**Per-sensor watermark:**
-- Purpose: Incremental resume without re-reading history.
-- Files: `src/skywatch/storage/watermark.py:20-99`
-- Pattern: load JSON at construction → mutate in memory during run → single atomic `commit` at the end.
-
-**HDFS adapter with offline fallback:**
-- Purpose: Keep ingestion working on laptops without a live Hadoop cluster.
-- Files: `src/skywatch/storage/hdfs_storage.py:17-123`
-- Pattern: `is_available()` + `check_safemode()` gate → stage to `/skywatch/_staging` → `hdfs dfs -mv` → fallback copy to `data/local_hdfs/`.
-
-**`ProfileConfig` / `load_profile`:**
-- Purpose: Keep Hadoop/Pig/Spark versions and thresholds out of application logic.
-- Files: `src/skywatch/pipeline/profile.py:16-72`
-- Pattern: profile name → sanitized filename → dotenv values → dataclass with defaults; `validate_environment` checks directories and Java versions.
-
-**`ValidationResult`:**
-- Purpose: Uniform pass/fail plus machine-readable reject reason.
-- Files: `src/skywatch/data/validation.py:13-16`
-- Pattern: dataclass `(is_valid, reject_reason)` returned by each rule; `validate_air_quality_record` short-circuits on first failure.
+- `IngestionOrchestrator`: Orchestrates polling, backfilling, and raw/normalized persistence.
+- `OpenAQClient` / `WeatherClient`: Encapsulate HTTP transport, rate limiting, and offline mocking.
+- `WatermarkManager`: Thread-safe persistence of per-sensor high-water mark timestamps.
+- `HDFSStorageAdapter`: Unified storage interface switching between HDFS CLI and local filesystem.
+- `PigRunner` (`run_pig_script`): Subprocess execution of Pig Latin with directory pre-clearing and sidecar schema injection.
+- `SparkRunner` (`run_spark_analytics`): PySpark session management, analytical job coordination, and dataset export.
+- `export_published_dataset`: Atomic directory staging swap mechanism ensuring transactional output publishing.
 
 ## Entry Points
 
-**`skywatch` console script:**
-- Location: `pyproject.toml:26-27` → `src/skywatch/cli.py:54`
-- Triggers: shell invocation after `pip install -e .`.
-- Responsibilities: parse `discover`, `collect`, `backfill`; construct dependencies; print summaries; return exit code.
-
-**`python -m skywatch.cli`:**
-- Location: `src/skywatch/cli.py:98-99`
-- Triggers: cron script, GitHub Actions, manual execution.
-- Responsibilities: same as console script.
-
-**`scripts/cron_collect.sh`:**
-- Location: `scripts/cron_collect.sh`
-- Triggers: local cron.
-- Responsibilities: flock guard, profile sourcing, `python -m skywatch.cli collect --mode incremental`, append to `data/logs/cron_collect.log`.
-
-**`.github/workflows/scheduled-collect.yml`:**
-- Location: `.github/workflows/scheduled-collect.yml`
-- Triggers: every 30 minutes and `workflow_dispatch`.
-- Responsibilities: install package, run `collect --mode latest` with `OPENAQ_API_KEY`, commit `data/raw/_manifest.csv` and `config/stations.json` back to the repo.
-
-**`.github/workflows/ci.yml`:**
-- Location: `.github/workflows/ci.yml`
-- Triggers: push/PR.
-- Responsibilities: `ruff check .` and `pytest`.
+- `skywatch` CLI (`src/skywatch/cli.py`): Subcommands `discover`, `collect`, `backfill`.
+- Pig Orchestration Runner (`src/skywatch/pipeline/pig_runner.py`): Entry point for Pig Latin execution.
+- Spark Analytics Runner (`src/skywatch/pipeline/spark_runner.py`): Entry point for PySpark analytical processing.
+- Shell Runners: `scripts/run_pig.sh`, `scripts/run_spark.sh`, `scripts/cron_collect.sh`, `scripts/use_profile.sh`.
 
 ## Architectural Constraints
 
-- **Python 3.8 floor:** All modules use `from __future__ import annotations`, `typing.List/Dict/Optional`, and avoid `match`/`X | Y` (`pyproject.toml:11`; `AGENTS.md`).
-- **Working-directory coupling:** Default paths are relative (`config/stations.json`, `data/raw`, `data/normalized`, `data/.watermarks.json`, `tests/fixtures`, `profiles`). Running from anywhere other than the repo root changes behavior (`src/skywatch/collector/collector.py:50-54`; `src/skywatch/storage/watermark.py:23`; `src/skywatch/pipeline/profile.py:47`).
-- **Single-threaded execution:** The orchestrator loops synchronously; no concurrency, locking, or parallel station polling. `run_id` is propagated via `contextvars`, not threads.
-- **HDFS access is shell-based:** `HDFSStorageAdapter` shells out to the `hdfs` binary with short timeouts. There is no WebHDFS/REST client and no retry loop around upload.
-- **No database or migration layer:** State is JSON/CSV on disk; schemas are versioned in `config/schemas.yaml` (`version: "2.0"`).
-- **Profile version isolation:** Runtime versions are injected through `profiles/modern.env` and `profiles/lab.env`; application code does not hardcode versions.
-- **UTC and determinism:** All timestamps are formatted as `%Y-%m-%dT%H:%M:%SZ`; dedupe keys and CSV column order are deterministic.
-- **Planned distributed layers are not wired:** There is no `pig/`, `src/skywatch/spark/`, `src/skywatch/analytics_core/`, `src/skywatch/dashboard/`, `output/`, or `Makefile` in the repository. See `.planning/ROADMAP.md:18-20`.
+- **Python 3.8 Syntax Floor:** Must maintain Python 3.8 compatibility across all modules (`from __future__ import annotations`, no `match/case`, no `X | Y` union syntax).
+- **Dual-Profile Runtime:** Zero hardcoded paths or versions; must rely on `profiles/*.env` and `profile.py`.
+- **Contract-First Design:** `config/schemas.yaml` is the single source of truth for all schemas.
+- **Idempotency & Replayability:** Any pipeline step must be safely re-runnable without duplicating data or corrupting state.
+- **Atomic File/Directory Operations:** All dataset writes must use temporary files/directories and atomic renames.
 
-## Anti-Patterns
+## Anti-Patterns Avoided
 
-### Weather hygiene is defined but not invoked
+- In-place directory overwrites without staging (prevents partial reads by concurrent consumers).
+- Header dependency on Pig outputs (solved by generating sidecar `_schema.json`).
+- Committing secrets or credentials (API keys strictly managed via environment variables).
+- Hardcoding cluster hostnames or JVM paths in application code.
 
-**What happens:** `validate_weather_record` exists in `src/skywatch/data/validation.py:92-127`, but `normalize_weather_response` never calls it. Normalized weather rows use `measurement_time_utc`/`temperature_c`/`humidity_pct`, while the validator expects `observed_time_utc`/`temperature_2m`/`relative_humidity_2m`, so the two contracts do not match.
-**Why it's wrong:** Weather rows bypass range, timestamp, humidity, and precipitation checks entirely; bad weather data flows straight into `data/normalized/weather/` and will reach the planned Spark correlation jobs.
-**Do this instead:** Make normalization call a weather validator with the normalized field names, or change the validator to accept the canonical schema and return a `ValidationResult` that is stored on each row.
+## Error Handling & Cross-Cutting Concerns
 
-### Default paths assume the repo root
-
-**What happens:** Every module constructs paths relative to the current working directory (`config/stations.json`, `data/raw`, `data/normalized`, `profiles/`, `tests/fixtures`). There is no project-root resolution.
-**Why it's wrong:** Running the CLI from a cron directory, a notebook, or an installed wheel writes data into the wrong tree or fails to find fixtures/config. The GitHub workflow works only because it runs at repo root.
-**Do this instead:** Resolve defaults from a single project-root helper (for example `Path(__file__).resolve().parents[2]`) and let environment variables override it.
-
-### Raw manifest append is not atomic or locked
-
-**What happens:** `save_raw_response` atomically writes the JSON payload, but appends to `data/raw/_manifest.csv` with a plain `open(..., "a")` (`src/skywatch/storage/raw_manifest.py:103-109`). There is no lock, temp-swap, or fsync for the manifest.
-**Why it's wrong:** Concurrent collectors (cron plus GitHub Actions, or two manual runs) can interleave or truncate manifest rows, breaking the audit ledger that is supposed to prove raw-response preservation.
-**Do this instead:** Serialize manifest updates through a lock file, or write one manifest fragment per run and compact them; at minimum flush/fsync and document the single-writer assumption.
-
-### Backfill uses ingestion-date partitions for historical events
-
-**What happens:** `run_chunked_backfill` writes every record in a chunk to `ingest_dt={chunk_end}` (`src/skywatch/collector/collector.py:279`, `:335-339`), even though the records' `measurement_time_utc` spans the whole chunk. It also does not update watermarks.
-**Why it's wrong:** The partition key no longer represents when data arrived, and a multi-day chunk collapses into one partition. Planned `event_dt`-partitioned `clean/` and `analytics/` layers (`.planning/REQUIREMENTS.md:25`) will need to re-derive event dates, and backfill and incremental state can diverge.
-**Do this instead:** Partition historical output by `event_dt` derived from `measurement_time_utc` (or explicitly document `ingest_dt` as arrival date), and decide whether backfill should advance watermarks or remain checkpoint-only.
-
-### Global schema cache hides config edits
-
-**What happens:** `load_schemas` stores the parsed YAML in module-global `_CACHED_SCHEMAS` (`src/skywatch/data/schemas.py:9-27`). Once loaded, later calls with `config_path=None` never re-read the file.
-**Why it's wrong:** Long-running processes and tests that edit `config/schemas.yaml` see stale columns; there is no cache invalidation hook.
-**Do this instead:** Cache by resolved path plus mtime, or expose an explicit `reload_schemas()` for callers that need fresh contracts.
-
-## Error Handling
-
-**Strategy:** Fail soft per station, fail hard per command, degrade storage to local fallback.
-
-**Patterns:**
-- **Per-station isolation:** Exceptions while polling a station are logged as warnings and the loop continues (`src/skywatch/collector/collector.py:179-180`). The summary does not include a failure count, so partial success looks like success.
-- **Top-level CLI catch:** Any uncaught exception is logged with traceback and converted to exit code 1 (`src/skywatch/cli.py:90-93`).
-- **HTTP retries:** OpenAQ retries 429/5xx/connection errors up to 5 times with jittered exponential backoff; 401/403 raises `AuthenticationError` immediately (`src/skywatch/collector/openaq_client.py:60-116`). Weather has the same retry shape without auth handling (`src/skywatch/collector/weather_client.py:52-85`).
-- **Storage fallback:** HDFS unavailability or safemode copies the partition to `data/local_hdfs/` and returns success (`src/skywatch/storage/hdfs_storage.py:83-89`); upload exceptions also fall back and return `False` (`:113-117`).
-- **Corrupt state recovery:** Missing or invalid watermark JSON resets to empty state with a warning (`src/skywatch/storage/watermark.py:28-40`); corrupt backfill checkpoint resets `completed_chunks` to `[]` (`src/skywatch/collector/collector.py:257-263`).
-- **Reject codes instead of exceptions:** Invalid records remain in the normalized CSV with `is_valid=False` and a `reject_reason`; validation never raises (`src/skywatch/data/validation.py:19-163`).
-
-## Cross-Cutting Concerns
-
-**Logging:** JSON lines via `JsonPipelineFormatter`, including `timestamp_utc`, `run_id`, `level`, `component`, and sanitized `message` (`src/skywatch/pipeline/logging.py:79-116`). `run_context` scopes a `run_id` across an orchestrator run; `redact_sensitive` and `_redact_dict` scrub API keys/tokens/passwords.
-
-**Validation:** Two related but separate mechanisms:
-- Row hygiene in `src/skywatch/data/validation.py` (required fields, non-negative values, PM ceiling 1000 µg/m³, accepted units, future timestamps).
-- Schema/type checks in `src/skywatch/data/schemas.py:45-92` (used by contract tests and potentially downstream consumers, not by the orchestrator write path).
-
-**Authentication:** OpenAQ uses `X-API-Key` from `OPENAQ_API_KEY` (`src/skywatch/collector/openaq_client.py:36-51`). Open-Meteo needs no key. `__repr__` methods omit credentials. GitHub Actions supplies `OPENAQ_API_KEY` from repository secrets.
-
-**Configuration:** `config/schemas.yaml` (data contract), `config/stations.json` (discovered station/sensor list), `profiles/modern.env` and `profiles/lab.env` (runtime paths and thresholds), plus environment variables (`OPENAQ_API_KEY`, `OPENAQ_OFFLINE`, `WEATHER_OFFLINE`, `SKYWATCH_OFFLINE`, `SKYWATCH_PROFILE`).
-
-**Idempotency:** `record_key` dedupe, deterministic CSV column order, `hdfs dfs -rm -f` before rename, and atomic state replacement together make repeated runs safe at the file level. Incremental resume depends on watermarks; backfill resume depends on the checkpoint.
-
----
-
-*Architecture analysis: 2026-11-22*
+- Network errors use exponential backoff with jitter.
+- Authentication failures (401/403) raise explicit fatal exceptions without pointless retries.
+- Pipeline logging uses structured JSON with `run_id` injection across all modules.
+- Scale benchmarks isolate synthetic data to `data/synthetic/` with `source="synthetic"` to prevent polluting production data.

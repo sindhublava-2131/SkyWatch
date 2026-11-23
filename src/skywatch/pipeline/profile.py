@@ -10,7 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
 
-import dotenv
+try:
+    import dotenv
+except ImportError:
+    dotenv = None
 
 
 @dataclass
@@ -49,7 +52,16 @@ def load_profile(
 
     file_values: Dict[str, str] = {}
     if profile_file.is_file():
-        file_values = dotenv.dotenv_values(str(profile_file))
+        if dotenv is not None:
+            file_values = dotenv.dotenv_values(str(profile_file))
+        else:
+            with open(profile_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    file_values[k.strip()] = v.strip().strip("'\"")
 
     def get_val(key: str, default: str) -> str:
         # Prioritize file values if profile was explicitly requested (CR-05), otherwise ambient os.environ

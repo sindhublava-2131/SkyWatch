@@ -218,3 +218,37 @@ def test_attach_sidecar_variations(tmp_path):
     # Unknown script without override returns None
     assert _attach_sidecar("unknown_script.pig", str(out_dir)) is None
 
+
+def test_pig_runner_require_real_engine_raises(tmp_path, monkeypatch):
+    """Test that pig_runner raises RuntimeError when real engine is required but Pig is absent."""
+    empty_home = tmp_path / "empty_pig"
+    empty_home.mkdir()
+    monkeypatch.setenv("PIG_HOME", str(empty_home))
+    monkeypatch.setenv("PATH", "")
+
+    input_file = Path("tests/fixtures/sample_air_quality.csv")
+    out_dir = tmp_path / "clean_fail"
+
+    with pytest.raises(RuntimeError, match="Apache Pig executable not found"):
+        run_pig_script(
+            script_path="pig/clean_air_quality.pig",
+            params={"INPUT": str(input_file), "OUTPUT": str(out_dir)},
+            require_real_engine=True,
+        )
+
+
+def test_pig_runner_engine_tag_in_result(tmp_path):
+    """Test that pig_runner tags result with engine type."""
+    input_file = Path("tests/fixtures/sample_air_quality.csv")
+    out_dir = tmp_path / "clean_tag"
+
+    result = run_pig_script(
+        script_path="pig/clean_air_quality.pig",
+        params={"INPUT": str(input_file), "OUTPUT": str(out_dir)},
+        require_real_engine=False,
+    )
+
+    assert result.engine in ("APACHE_PIG", "STANDALONE_PYTHON_SIMULATION")
+    assert result.success is True
+
+

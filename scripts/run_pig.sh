@@ -63,12 +63,18 @@ else
 fi
 
 # 6. Execute Python Pig runner orchestrator
+EXTRA_ARGS=()
+if [[ "${SKYWATCH_REQUIRE_REAL_ENGINE:-}" =~ ^(1|true|yes)$ ]]; then
+    EXTRA_ARGS+=(--require-real-engine)
+fi
+
 python -m skywatch.pipeline.pig_runner \
     --script "$TARGET_SCRIPT" \
     --input "$INPUT_PATH" \
     --output "$OUTPUT_PATH" \
     --run-date "$RUN_DATE" \
     --profile "$PROFILE" \
+    "${EXTRA_ARGS[@]}" \
     2>&1 | tee -a "$LOG_FILE"
 
 echo "[$(date -u +"%Y-%m-%dT%H:%M:%SZ")] Pig execution completed successfully for $SCRIPT_NAME" | tee -a "$LOG_FILE"

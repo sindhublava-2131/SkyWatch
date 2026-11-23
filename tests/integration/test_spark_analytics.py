@@ -105,3 +105,36 @@ def test_is_spark_available_detection():
     # PySpark is installed, should return boolean without exception
     res = is_spark_available()
     assert isinstance(res, bool)
+
+
+def test_spark_runner_require_real_engine_raises_on_simulation(tmp_path: Path):
+    clean_path = Path("tests/fixtures/sample_air_quality.csv")
+    weather_path = Path("tests/fixtures/sample_weather_normalized.csv")
+    out_dir = tmp_path / "published_fail"
+
+    with pytest.raises(RuntimeError, match="Cannot force simulation fallback when real Spark engine is required"):
+        run_spark_analytics(
+            input_clean_dir=clean_path,
+            input_weather_dir=weather_path,
+            output_published_dir=out_dir,
+            force_simulation=True,
+            require_real_engine=True,
+        )
+
+
+def test_spark_runner_engine_tag_in_results(tmp_path: Path):
+    clean_path = Path("tests/fixtures/sample_air_quality.csv")
+    weather_path = Path("tests/fixtures/sample_weather_normalized.csv")
+    out_dir = tmp_path / "published_tag"
+
+    results = run_spark_analytics(
+        input_clean_dir=clean_path,
+        input_weather_dir=weather_path,
+        output_published_dir=out_dir,
+        force_simulation=True,
+        require_real_engine=False,
+    )
+
+    assert len(results) == 7
+    assert all(r.engine == "STANDALONE_PYTHON_SIMULATION" for r in results)
+

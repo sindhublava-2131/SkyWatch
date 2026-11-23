@@ -1,130 +1,81 @@
+---
+last_mapped_commit: 831a73a6e8025d4970ff7b506be5de6d304b4c61
+last_mapped_at: 2026-11-23
+---
 # External Integrations
 
-**Analysis Date:** 2026-11-22
+**Analysis Date:** 2026-11-23
 
 ## APIs & External Services
 
-**Air Quality:**
-- OpenAQ API v3 — station discovery, latest readings, and historical sensor measurements.
-  - Base URL: `https://api.openaq.org/v3` (`src/skywatch/collector/openaq_client.py`)
-  - SDK/Client: custom synchronous client on `requests.Session`; no official OpenAQ SDK is used.
-  - Auth: `X-API-Key` header populated from `OPENAQ_API_KEY` (`src/skywatch/collector/openaq_client.py`). HTTP 401/403 raises `AuthenticationError` and is not retried.
-  - Endpoints called:
-    - `GET /locations?bbox=77.45,12.83,77.75,13.12&limit=100&page=1` — `get_locations()` used by `discover_stations()` in `src/skywatch/collector/discovery.py`.
-    - `GET /locations/{id}/latest` — `get_latest()` used for `--mode latest` in `src/skywatch/collector/collector.py`.
-    - `GET /sensors/{id}/measurements?datetime_from=...&datetime_to=...&limit=100&page=1` — `get_measurements()` used for incremental collection and backfill.
-    - `GET /sensors/{id}/hours` — `get_hours()` is defined but not called anywhere in `src/` or `tests/`.
-  - Retry behavior: exponential backoff with jitter up to `max_retries` (default 5); HTTP 429 honors `Retry-After` or waits `min(60, 1.5 * 2^attempt)`; HTTP 5xx waits `min(30, 2^attempt)`; connection/timeout and invalid-JSON responses are retried.
-  - Timeout: 20 seconds by default (`OpenAQClient(timeout=20)`).
-  - Offline mode: `offline=True` or a non-empty `OPENAQ_OFFLINE` environment variable reads `tests/fixtures/sample_openaq_locations.json`, `sample_openaq_latest.json`, and `sample_openaq_measurements.json`.
-  - Attribution: OpenAQ aggregates provider data; the spec requires OpenAQ and originating-provider attribution.
+**Air Quality Telemetry:**
+- OpenAQ API v3 — Station discovery, real-time measurements, and historical sensor readings for Bengaluru.
+  - Base URL: `https://api.openaq.org/v3` (`src/skywatch/collector/openaq_client.py:24`)
+  - Client: Custom HTTP client wrapping `requests.Session` with retry loops and exponential backoff (`src/skywatch/collector/openaq_client.py:27`).
+  - Authentication: Custom `X-API-Key` header populated from `OPENAQ_API_KEY` environment variable. HTTP 401/403 triggers non-retryable `AuthenticationError`.
+  - Endpoints:
+    - `GET /locations?bbox=77.45,12.83,77.75,13.12&limit=100&page=1` — Discover CAAQMS monitoring stations in the Bengaluru metropolitan bounding box (`src/skywatch/collector/discovery.py:17`).
+    - `GET /locations/{id}/latest` — Fetch latest snapshot readings per location (`src/skywatch/collector/openaq_client.py:72`).
+    - `GET /sensors/{id}/measurements?datetime_from=...&datetime_to=...&limit=100&page=1` — Incremental collection and chunked historical backfill per sensor (`src/skywatch/collector/openaq_client.py:86`).
+  - Retry Strategy: Exponential backoff with random jitter up to `max_retries` (default 5). Honors HTTP 429 `Retry-After` headers; retries HTTP 5xx errors and network timeouts (`src/skywatch/collector/openaq_client.py:134`).
+  - Offline Mode: Setting `offline=True` or `OPENAQ_OFFLINE=1` diverts requests to frozen test fixtures in `tests/fixtures/sample_openaq_*.json` (`src/skywatch/collector/openaq_client.py:38`).
 
-**Weather:**
-- Open-Meteo Forecast API — current/recent hourly weather for Bengaluru.
-  - URL: `https://api.open-meteo.com/v1/forecast` (`src/skywatch/collector/weather_client.py`)
-  - Auth: none (free non-commercial tier; fair-use limits).
-  - Parameters: `latitude`, `longitude`, `hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation`, `timezone=UTC`.
-  - Called once per collection cycle for the fixed Bengaluru central point `(12.91, 77.61)` in `src/skywatch/collector/collector.py`; not per station.
-- Open-Meteo Archive API — historical hourly weather for chunked backfill.
-  - URL: `https://archive-api.open-meteo.com/v1/archive` (`src/skywatch/collector/weather_client.py`)
-  - Parameters: `latitude`, `longitude`, `start_date`, `end_date`, `hourly`, `timezone=UTC`.
-  - Called per backfill chunk in `src/skywatch/collector/collector.py`.
-  - Retry behavior: 429 and 5xx retries with exponential backoff and jitter; connection/timeout and invalid-JSON retries; no `Retry-After` handling.
-  - Offline mode: `offline=True`, `WEATHER_OFFLINE`, `SKYWATCH_OFFLINE`, or `OPENAQ_OFFLINE` reads `tests/fixtures/sample_weather_forecast.json` / `sample_weather_archive.json`.
-  - Attribution: "Weather data by Open-Meteo.com" (CC BY 4.0) required by the spec; data is gridded model output, not a station measurement.
-
-**Planned but not implemented:**
-- No CPCB API integration; CPCB breakpoints and PM-based AQI are computed locally in planned Phase 3.
-- No Streamlit Cloud or other dashboard service integration exists; planned in Phase 4.
-- No mapping tile provider or geocoding service exists; a station map is planned in Phase 4.
+**Meteorological Data:**
+- Open-Meteo APIs — Free-tier meteorological forecasts and historical weather archives for Bengaluru.
+  - Forecast Endpoint: `https://api.open-meteo.com/v1/forecast` (`src/skywatch/collector/weather_client.py:21`)
+  - Archive Endpoint: `https://archive-api.open-meteo.com/v1/archive` (`src/skywatch/collector/weather_client.py:22`)
+  - Authentication: None required.
+  - Parameters: Centered at Bengaluru coordinates `(12.91, 77.61)` requesting `hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation` in `UTC` timezone (`src/skywatch/collector/weather_client.py:46`).
+  - Offline Mode: Supported via `tests/fixtures/sample_weather_forecast.json` and `sample_weather_archive.json`.
 
 ## Data Storage
 
-**Databases:**
-- None. No relational database, NoSQL store, ORM, or SQL driver exists in `pyproject.toml` or `src/`.
+**Local Partitioned Filesystem:**
+- Directory tree: `data/`
+  - `data/raw/` — Verbatim JSON API responses accompanied by `_manifest.csv` audit trails (`src/skywatch/storage/raw_manifest.py`).
+  - `data/normalized/` — Ingestion-date partitioned CSVs (`ingest_dt=YYYY-MM-DD`) validated against `config/schemas.yaml`.
+  - `data/clean/` — Event-date partitioned headerless CSVs (`event_dt=YYYY-MM-DD`) produced by Pig ETL.
+  - `data/analytics/` — Pig daily and hourly rollup datasets (`data/analytics/station_stats/`, `data/analytics/hourly_rollup/`).
+  - `output/published/` — Dual Parquet and CSV analytical datasets produced by Spark jobs (`src/skywatch/spark/export.py`).
+  - `data/synthetic/` — Deterministic synthetic benchmarking datasets for 1x, 10x, and 100x scale stress testing (`scripts/make_synthetic.py`).
 
-**File Storage:**
-- Local filesystem — raw responses and normalized partitions.
-  - Raw: `data/raw/{source}/ingest_dt=YYYY-MM-DD/{source}_{run_id}_{sha256[:8]}.json` written atomically by `src/skywatch/storage/raw_manifest.py`.
-  - Audit ledger: `data/raw/_manifest.csv` with `run_id`, `file_path`, `source`, `endpoint_url`, `http_status`, `sha256`, `record_count`, `collected_at_utc` (`config/schemas.yaml` `manifest`).
-  - Normalized: `data/normalized/{air_quality|weather}/ingest_dt=YYYY-MM-DD/{stream}_{run_id}.csv` written atomically (temp file + `fsync` + `os.replace`) by `src/skywatch/storage/local_storage.py`.
-- HDFS — optional partitioned storage through the `hdfs` CLI (`src/skywatch/storage/hdfs_storage.py`).
-  - Checks `hdfs version` availability and `hdfs dfsadmin -safemode get`; writes to `/skywatch/_staging/{run_id}_{filename}` then `hdfs dfs -mv` to `/skywatch/normalized/{stream}/ingest_dt=YYYY-MM-DD/`.
-  - Falls back to `data/local_hdfs/normalized/{stream}/ingest_dt=.../` when the binary is missing, the NameNode is unreachable, safemode is ON, or an upload fails.
-  - No WebHDFS, Kerberos, or HDFS Python library is configured.
-- State files (JSON, atomic replace):
-  - `data/.watermarks.json` — per-sensor `last_measurement_utc`, `station_id`, `parameter`, `last_run_id`, `records_ingested` (`src/skywatch/storage/watermark.py`).
-  - `data/.backfill_checkpoint.json` — completed chunk keys and `last_updated` (`src/skywatch/collector/collector.py`).
-- Runtime data is git-ignored except `data/raw/_manifest.csv`; `data/local_hdfs/` currently contains cached partitions from offline runs.
+**Hadoop Distributed File System (HDFS):**
+- Module: `src/skywatch/storage/hdfs_storage.py` (`HDFSStorageAdapter`)
+- Integration: Interacts with Apache Hadoop HDFS via `hdfs dfs` subprocess execution, with automatic environment detection.
+- Fallback: When HDFS is unconfigured or unavailable, automatically routes files to a local simulation directory `data/local_hdfs/`.
 
-**Caching:**
-- No cache service. `tests/fixtures/` act as offline fixtures, not a runtime cache. There is no Redis, Memcached, or HTTP cache layer.
+**State & Watermark Tracking:**
+- High-Water Marks: `data/.watermarks.json` managed by `WatermarkManager` (`src/skywatch/storage/watermark.py`). Tracks ISO-8601 UTC timestamps per sensor to ensure idempotent incremental ingestion.
+- Backfill Checkpoints: `data/.backfill_checkpoint.json` records completed date chunks to support resumption after failure.
+
+## Big Data Engines
+
+**Apache Pig (ETL & Aggregation):**
+- Module: `src/skywatch/pipeline/pig_runner.py` and `scripts/run_pig.sh`.
+- Pig Scripts: `pig/clean_air_quality.pig`, `pig/station_stats.pig`, `pig/hourly_rollup.pig`.
+- Contract: Outputs headerless CSV files and automatically generates sidecar `_schema.json` files to guarantee schema contracts for downstream Spark jobs.
+- Execution Mode: `pig -x local` or MapReduce on YARN; automatically falls back to an in-memory pure-Python fallback when Pig/Hadoop is absent.
+
+**Apache Spark / PySpark (Analytical Engine):**
+- Modules: `src/skywatch/spark/` and `src/skywatch/pipeline/spark_runner.py`.
+- Execution: Managed via `SparkSession` builder (`src/skywatch/spark/common.py`), submitting analytics jobs or using local PySpark.
+- Published Datasets: 7 distinct analytical products written to `output/published/` via atomic staging swaps (`src/skywatch/spark/export.py`).
+- Fallback: Pure-Python standalone fallback (`_run_standalone_spark_fallback` in `spark_runner.py`) enables full testing in zero-JVM environments.
 
 ## Authentication & Identity
 
-**Auth Provider:**
-- None for the application itself; it is a single-tenant, local/CLI pipeline with no user accounts, sessions, or OAuth.
-- The only credential is the OpenAQ API key:
-  - Local: `OPENAQ_API_KEY` environment variable (`.env` is git-ignored; no `.env` or `.env.example` is present in the repository).
-  - CI: repository secret `OPENAQ_API_KEY` injected in `.github/workflows/scheduled-collect.yml`.
-  - Logging: `src/skywatch/pipeline/logging.py` redacts `api_key`, `token`, `secret`, `password`, and `auth` patterns, and `OpenAQClient.__repr__` omits the key.
-- HDFS/YARN security: the spec requires binding daemons to localhost; no Kerberos or TLS configuration exists.
+- `OPENAQ_API_KEY`: Injected into the HTTP header `X-API-Key`.
+- Profile Isolation: `profiles/modern.env` and `profiles/lab.env` manage environment variables (`JAVA_HOME`, `HADOOP_HOME`, `SPARK_HOME`, `PIG_HOME`).
 
 ## Monitoring & Observability
 
-**Error Tracking:**
-- None. No Sentry, OpenTelemetry, Datadog, or equivalent integration.
-
-**Logs:**
-- Structured JSON logs to standard error via `logging.StreamHandler` in `src/skywatch/pipeline/logging.py`.
-- Fields: `timestamp_utc`, `run_id`, `level`, `component`, `message`, optional sanitized `extra`.
-- `run_id` is a UUID4 hex string propagated through `contextvars` by `run_context()`.
-- Local cron writes stdout/stderr to `data/logs/cron_collect.log` (`scripts/cron_collect.sh`); GitHub Actions logs are the CI observability surface.
-- No log aggregation, metrics endpoint, or dashboard exists.
+- Structured Logging: `src/skywatch/pipeline/logging.py` provides JSON-formatted output with run identifiers (`run_id`), timestamps, and component tags.
+- Quality Reporting: `src/skywatch/spark/quality_report.py` generates diagnostic counts of accepted, rejected, and duplicate records across pipeline stages.
+- Alerting Engine: `src/skywatch/spark/alert_engine.py` evaluates health thresholds (CPCB AQI > 200) and telemetry anomalies (stale or offline stations, rolling median spikes).
 
 ## CI/CD & Deployment
 
-**Hosting:**
-- No application hosting or deployment configuration exists in the repository.
-- Target per `docs/SkyWatch - Project Specification v2.0.md` §17: Hadoop/Pig/Spark on a local Linux machine, collector on GitHub Actions plus local cron, and dashboard on Streamlit Community Cloud (planned Phase 4).
-
-**CI Pipeline:**
-- `.github/workflows/ci.yml` — on push to `main`, `feature/**`, `chore/**` and pull requests to `main`; `ubuntu-latest`, Python 3.11, `pip install ruff pytest responses`, `pip install -e .`, then `ruff check .` and `pytest`.
-- `.github/workflows/scheduled-collect.yml` — cron `*/30 * * * *` plus `workflow_dispatch`; Python 3.11, `pip install .`, runs `python -m skywatch.cli collect --mode latest` with `OPENAQ_API_KEY` from secrets, then commits `data/raw/_manifest.csv` and `config/stations.json` with `github-actions[bot]` and pushes to `main`. Declares `permissions: contents: write`.
-- No `publish-data.yml`, `live-contract.yml`, or `release.yml` exists, although the spec plans them.
-- No Docker image build, no CD deployment step, and no artifact publishing.
-
-## Environment Configuration
-
-**Required env vars:**
-- `OPENAQ_API_KEY` — required for live OpenAQ calls; optional when using offline fixtures.
-- `SKYWATCH_PROFILE` — `modern` or `lab`; defaults to `modern`.
-- `HADOOP_HOME`, `PIG_HOME`, `SPARK_HOME`, `JAVA_HOME_PIG`, `JAVA_HOME_SPARK`, `HDFS_ROOT` — planned stack paths, defined in `profiles/*.env`.
-- `SKYWATCH_HTTP_TIMEOUT`, `SKYWATCH_MAX_RETRIES`, `SKYWATCH_FRESH_HOURS`, `SKYWATCH_STALE_HOURS` — profile tuning values.
-- `OPENAQ_OFFLINE`, `WEATHER_OFFLINE`, `SKYWATCH_OFFLINE` — optional offline switches.
-
-**Secrets location:**
-- Local: process environment / `.env` (git-ignored; file absent).
-- CI: GitHub Actions repository secret `OPENAQ_API_KEY`.
-- No secrets are committed; `.gitignore` excludes `.env` and runtime data.
-
-## Webhooks & Callbacks
-
-**Incoming:**
-- None. There is no HTTP server, webhook endpoint, or callback route.
-- GitHub Actions `schedule` and `workflow_dispatch` trigger collection; these are scheduler events, not webhooks.
-
-**Outgoing:**
-- None. The pipeline makes outbound HTTPS requests only to OpenAQ and Open-Meteo; it does not post to Slack, email, or other notification services.
-- Planned alerts are written to local/exported files in Phase 3, not delivered through webhooks.
-
-## Planned Integrations (Phases 2–4)
-
-- Apache Pig on HDFS — reads normalized CSV partitions and writes clean/aggregate outputs with sidecar `_schema.json` (`.planning/ROADMAP.md` Phase 2). No Pig scripts or runner exist.
-- Apache Spark — reads Pig/HDFS outputs, joins weather and pollution by UTC hour, computes CPCB index and Pearson correlations, and exports Parquet/CSV to `output/published/` (`.planning/ROADMAP.md` Phase 3). No Spark code exists.
-- Streamlit dashboard — reads published CSV/Parquet files; planned for Streamlit Community Cloud using a `published-data` branch (`.planning/ROADMAP.md` Phase 4; spec §17). No dashboard code or deployment exists.
-- Additional GitHub Actions workflows (`publish-data.yml`, `live-contract.yml`, `release.yml`) and Dependabot are specified in `docs/SkyWatch - Project Specification v2.0.md` §16 but are not present.
-
----
-
-*Integration audit: 2026-11-22*
+- GitHub Actions Workflows:
+  - `.github/workflows/ci.yml` — Runs Ruff linting and pytest test suites on Python 3.11 for all pushes and PRs.
+  - `.github/workflows/scheduled-collect.yml` — Runs hourly automated ingestion with artifact uploads.
+- Cron Script: `scripts/cron_collect.sh` enables server-side scheduling with file locks (`flock`) and rotating log output.
