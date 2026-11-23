@@ -4,8 +4,8 @@ Use the canonical SkyWatch rules in `AGENTS.md`:
 
 @AGENTS.md
 
-### Mandatory Git Branching & CI/CD Rule:
-Commit all changes to a new branch (never commit working code directly to `main`). For each phase completion, if the CI/CD pipeline and test suite are a success, merge the branch into `main`.
+### Mandatory Git Branching, PR & Review Rule:
+Commit all changes to a new branch (never commit working code directly to `main`). Never merge branches into `main` without creating a Pull Request (PR) and reviewing everything. For each phase completion or change, push the branch, open a PR with comprehensive test evidence and change summaries, and ensure full review and passing CI/CD before any merge.
 
 ### Graphicle Static Analysis & Graph Navigation:
 Before modifying code, synchronize the repository and evaluate component impact using Graphicle:

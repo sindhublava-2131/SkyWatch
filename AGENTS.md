@@ -27,7 +27,7 @@ These are the canonical repository rules for Codex and any agent working in SkyW
 
 ## 3. Make safe, scoped changes
 
-- **Git Branching & CI/CD Merge Protocol (Mandatory Rule)**: Commit all changes to a new branch (never commit working code directly to `main`). For each phase completion, if the CI/CD pipeline and test suite are a success, merge the branch into `main`.
+- **Git Branching, PR & Review Protocol (Mandatory Rule)**: Commit all changes to a new branch (never commit working code directly to `main`). Never merge branches into `main` without creating a Pull Request (PR) and conducting a comprehensive review. For each phase completion or change, push the working branch, open a PR with complete change context, verification evidence, and CI/CD results, and ensure thorough code and specification review before merging.
 - Use an isolated sandbox/worktree when one is available. If not, record the starting worktree state, make the smallest reviewable change, and preserve a clear rollback path. Do not overwrite or revert pre-existing user work; revert only changes you made.
 - Keep each change focused. Avoid unrelated files and unnecessary permanent catalogs or generated artifacts. Update relevant documentation and contracts when behavior changes.
 - Never commit secrets, credentials, personal data, or sensitive API responses. Do not expose Hadoop, HDFS, YARN, or Spark services publicly. Avoid destructive Git actions (including `reset --hard`, `clean`, force-push, or broad checkout/revert commands); do not run them unless explicitly requested and the exact affected files are confirmed.
