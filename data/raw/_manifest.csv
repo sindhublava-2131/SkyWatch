@@ -1,3 +1,4 @@
 run_id,file_path,source,endpoint_url,http_status,sha256,record_count,collected_at_utc
 face70a655ec48feab93c48be8d94afc,data/raw/open-meteo/ingest_dt=2026-11-22/open-meteo_face70a655ec48feab93c48be8d94afc_c65d5e1c.json,open-meteo,https://api.open-meteo.com/v1/forecast,200,c65d5e1c030a62462202f29dacce656b0523320c9c6ba217c318dbdce5f02644,168,2026-11-22T19:26:57Z
 5b3226728a91474a96232a3c2f4d768b,data/raw/open-meteo/ingest_dt=2026-11-23/open-meteo_5b3226728a91474a96232a3c2f4d768b_22e8a264.json,open-meteo,https://api.open-meteo.com/v1/forecast,200,22e8a2642f477152b8b45f87389a456ee3e0488059c5891467a729b64b97fecc,168,2026-11-23T00:26:57Z
+8e18f4ccae164ec4bfa2ffae56c9429b,data/raw/open-meteo/ingest_dt=2026-11-23/open-meteo_8e18f4ccae164ec4bfa2ffae56c9429b_58484524.json,open-meteo,https://api.open-meteo.com/v1/forecast,200,584845249b0a640703d3fb927894b845d6a2073c221595070e99d2c46251a446,168,2026-11-23T08:00:30Z
