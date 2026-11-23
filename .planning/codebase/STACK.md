@@ -47,10 +47,10 @@ last_mapped_at: 2026-11-23
 - Big Data Execution Runtimes:
   - Apache Hadoop HDFS (`HDFSStorageAdapter` via CLI or local directory mirroring fallback in `data/local_hdfs/`).
   - Apache Pig (executed in local mode `pig -x local` or MapReduce on YARN; pure-Python standalone fallback in `src/skywatch/pipeline/pig_runner.py`).
-  - Apache Spark 3.5.0 / 2.4.8 (executed via `spark-submit` or PySpark local runner; pure-Python standalone fallback in `src/skywatch/pipeline/spark_runner.py`).
+  - Apache Spark 3.5.0 / 3.2.2 (executed via `spark-submit` or PySpark local runner; pure-Python standalone fallback in `src/skywatch/pipeline/spark_runner.py`).
 - JVM / Java Requirements:
   - Modern profile: OpenJDK 17 for Spark 3.5.0, OpenJDK 8 for Pig 0.18.0.
-  - Lab profile: OpenJDK 8 for Spark 2.4.8 and Pig 0.16.0.
+  - Lab profile: OpenJDK 8 for Spark 3.2.2 and Pig 0.18.0.
 - Operating System:
   - Linux (Ubuntu/Debian) target for production Hadoop/Spark clusters and CI.
   - Cross-platform POSIX and Windows compatibility with atomic filesystem fallbacks.
@@ -102,9 +102,12 @@ last_mapped_at: 2026-11-23
   - `HADOOP_VERSION="3.3.6"`, `PIG_VERSION="0.18.0"`, `SPARK_VERSION="3.5.0"`
   - `JAVA_HOME_SPARK="/usr/lib/jvm/java-17-openjdk-amd64"`
   - `JAVA_HOME_PIG="/usr/lib/jvm/java-8-openjdk-amd64"`
-- `profiles/lab.env` — legacy lab rollback stack:
-  - `HADOOP_VERSION="2.7.7"`, `PIG_VERSION="0.16.0"`, `SPARK_VERSION="2.4.8"`
-  - `JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64"`
+- `profiles/lab.env` — agreed lab rollback stack:
+  - `HADOOP_VERSION="3.2.2"`, `PIG_VERSION="0.18.0"`, `SPARK_VERSION="3.2.2"`
+  - `JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64"` (OpenJDK 8 unified)
+
+### Architectural Note: Spark 2.4.8 Incompatibility with Python 3.8+ Floor
+PySpark 2.4.8 was released for Python 2.7 and 3.4–3.7 and fails on Python 3.8+ due to syntax and Py4J bytecode incompatibilities. Because SkyWatch enforces a Python 3.8 syntax floor (`requires-python = ">=3.8"`), Spark 2.4.8 cannot run in this codebase. The agreed rollback stack in Project Spec v2.0 (§2, §18) is Hadoop 3.2.2, Pig 0.18.0, Spark 3.2.2, and OpenJDK 8, which provides native Python 3.8+ compatibility and executes cleanly on OpenJDK 8.
 
 **Domain & Schema Configuration:**
 - `config/schemas.yaml` — schema registry for 10 datasets across raw, clean, and published tiers.

@@ -38,6 +38,7 @@ class RunResult:
     output_dir: Optional[str] = None
     records_processed: int = 0
     success: bool = True
+    engine: str = "APACHE_PIG"
 
 
 def is_pig_available(pig_home: Optional[str] = None) -> bool:
@@ -328,6 +329,7 @@ def _run_standalone_fallback(
         output_dir=output_param,
         records_processed=processed_count,
         success=True,
+        engine="STANDALONE_PYTHON_SIMULATION",
     )
 
 
@@ -340,6 +342,7 @@ def run_pig_script(
     run_id: Optional[str] = None,
     config_path: Optional[str] = None,
     entity: Optional[str] = None,
+    require_real_engine: bool = False,
 ) -> RunResult:
     """Execute an Apache Pig script with parameter binding and standalone simulation fallback."""
     with run_context(run_id) as active_run_id:
@@ -380,16 +383,29 @@ def run_pig_script(
         active_profile = profile or load_profile()
         pig_bin_available = is_pig_available(active_profile.pig_home)
 
+        require_real = (
+            require_real_engine
+            or os.environ.get("SKYWATCH_REQUIRE_REAL_ENGINE", "").lower() in ("1", "true", "yes")
+        )
+
         if not pig_bin_available:
-            if offline_fallback:
-                logger.warning(
-                    "Pig executable not found on host; executing via standalone Python fallback",
-                    extra={"script": script.name, "run_id": active_run_id},
+            if require_real or not offline_fallback:
+                logger.error(
+                    "[ENGINE: APACHE_PIG] Pig executable not found and real engine is required",
+                    extra={"pig_home": active_profile.pig_home, "script": script.name},
                 )
-                return _run_standalone_fallback(script_path, params, config_path, entity_override=entity)
-            raise RuntimeError(
-                f"Apache Pig executable not found (PIG_HOME='{active_profile.pig_home}') and offline_fallback is disabled."
+                raise RuntimeError(
+                    f"Apache Pig executable not found (PIG_HOME='{active_profile.pig_home}') and real engine is required."
+                )
+
+            logger.warning(
+                "[ENGINE: STANDALONE_PYTHON_SIMULATION] Pig executable not found on host; executing via standalone Python fallback",
+                extra={"engine": "STANDALONE_PYTHON_SIMULATION", "script": script.name, "run_id": active_run_id},
             )
+            print(f"[ENGINE: STANDALONE_PYTHON_SIMULATION] Executing {script.name} via pure-Python fallback (Pig not found)")
+            res = _run_standalone_fallback(script_path, params, config_path, entity_override=entity)
+            res.engine = "STANDALONE_PYTHON_SIMULATION"
+            return res
 
         # Build command array without shell=True for execution safety
         pig_bin = "pig.cmd" if os.name == "nt" else "pig"
@@ -415,7 +431,8 @@ def run_pig_script(
             env["HADOOP_HOME"] = active_profile.hadoop_home
 
         start_time = time.monotonic()
-        logger.info("Launching Apache Pig subprocess", extra={"cmd": cmd, "run_id": active_run_id})
+        logger.info("[ENGINE: APACHE_PIG] Launching Apache Pig subprocess", extra={"engine": "APACHE_PIG", "cmd": cmd, "run_id": active_run_id})
+        print(f"[ENGINE: APACHE_PIG] Launching Apache Pig subprocess: {script.name}")
 
         try:
             proc = subprocess.run(
@@ -438,6 +455,7 @@ def run_pig_script(
                 output_dir=output_dir,
                 records_processed=0,
                 success=False,
+                engine="APACHE_PIG",
             )
 
         duration = time.monotonic() - start_time
@@ -450,7 +468,7 @@ def run_pig_script(
                     with open(part, "r", encoding="utf-8") as fp:
                         rec_count += sum(1 for line in fp if line.strip())
 
-            logger.info("Apache Pig execution succeeded", extra={"script": script.name, "duration_seconds": duration})
+            logger.info("Apache Pig execution succeeded", extra={"script": script.name, "duration_seconds": duration, "engine": "APACHE_PIG"})
             return RunResult(
                 script=script.name,
                 returncode=0,
@@ -460,9 +478,10 @@ def run_pig_script(
                 output_dir=output_dir,
                 records_processed=rec_count,
                 success=True,
+                engine="APACHE_PIG",
             )
 
-        logger.error("Apache Pig execution failed", extra={"script": script.name, "returncode": proc.returncode, "stderr": proc.stderr})
+        logger.error("Apache Pig execution failed", extra={"script": script.name, "returncode": proc.returncode, "stderr": proc.stderr, "engine": "APACHE_PIG"})
         return RunResult(
             script=script.name,
             returncode=proc.returncode,
@@ -472,6 +491,7 @@ def run_pig_script(
             output_dir=output_dir,
             records_processed=0,
             success=False,
+            engine="APACHE_PIG",
         )
 
 
@@ -486,6 +506,7 @@ def main() -> None:
     parser.add_argument("--mode", default="local", help="Execution mode (local or mapreduce)")
     parser.add_argument("--entity", default=None, help="Explicit canonical entity name for sidecar schema")
     parser.add_argument("--no-fallback", action="store_true", help="Disable offline Python fallback")
+    parser.add_argument("--require-real-engine", action="store_true", help="Fail if Apache Pig binary is unavailable")
 
     args = parser.parse_args()
 
@@ -503,13 +524,14 @@ def main() -> None:
         mode=args.mode,
         offline_fallback=not args.no_fallback,
         entity=args.entity,
+        require_real_engine=args.require_real_engine,
     )
 
     if not result.success:
         print(f"ERROR: Pig runner failed with returncode {result.returncode}:\n{result.stderr}")
         raise SystemExit(result.returncode)
 
-    print(f"SUCCESS: {result.script} completed in {result.duration_seconds:.2f}s ({result.records_processed} records)")
+    print(f"SUCCESS [{result.engine}]: {result.script} completed in {result.duration_seconds:.2f}s ({result.records_processed} records)")
 
 
 if __name__ == "__main__":

@@ -44,6 +44,10 @@ if [ -f "$PROFILE_FILE" ]; then
 fi
 
 # 5. Execute Python Spark runner orchestrator
+if [[ "${SKYWATCH_REQUIRE_REAL_ENGINE:-}" =~ ^(1|true|yes)$ ]]; then
+    EXTRA_FLAGS="$EXTRA_FLAGS --require-real-engine"
+fi
+
 # shellcheck disable=SC2086
 python -m skywatch.pipeline.spark_runner \
     --input-clean "$INPUT_CLEAN" \

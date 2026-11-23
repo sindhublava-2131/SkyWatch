@@ -97,11 +97,11 @@ flowchart LR
         ModernEnv --> M_Spark["Apache Spark 3.5.0"]
     end
 
-    subgraph LabStack["Lab Profile (Legacy Rollback)"]
+    subgraph LabStack["Lab Profile (Agreed Rollback Stack)"]
         LabEnv --> L_Java["Java 8 Unified"]
-        LabEnv --> L_Hadoop["Apache Hadoop 2.7.7"]
-        LabEnv --> L_Pig["Apache Pig 0.16.0"]
-        LabEnv --> L_Spark["Apache Spark 2.4.8"]
+        LabEnv --> L_Hadoop["Apache Hadoop 3.2.2"]
+        LabEnv --> L_Pig["Apache Pig 0.18.0"]
+        LabEnv --> L_Spark["Apache Spark 3.2.2"]
     end
 
     ModernStack --> ProfileLoader["src/skywatch/pipeline/profile.py"]
@@ -114,13 +114,16 @@ flowchart LR
 | Subsystem | Modern Profile | Lab Rollback Profile | Responsibility |
 | :--- | :--- | :--- | :--- |
 | **Language Floor** | Python 3.8+ (CI on 3.11) | Python 3.8+ (CI on 3.11) | Core pipeline, algorithms, schema validation |
-| **HDFS Storage** | Apache Hadoop 3.3.6 | Apache Hadoop 2.7.7 | Distributed partition storage and mirroring |
-| **Batch ETL** | Apache Pig 0.18.0 | Apache Pig 0.16.0 | Declarative MapReduce batch cleaning and rollups |
-| **Analytics Engine** | Apache Spark 3.5.0 | Apache Spark 2.4.8 | Distributed in-memory windowing, joins, statistics |
+| **HDFS Storage** | Apache Hadoop 3.3.6 | Apache Hadoop 3.2.2 | Distributed partition storage and mirroring |
+| **Batch ETL** | Apache Pig 0.18.0 | Apache Pig 0.18.0 | Declarative MapReduce batch cleaning and rollups |
+| **Analytics Engine** | Apache Spark 3.5.0 | Apache Spark 3.2.2 | Distributed in-memory windowing, joins, statistics |
 | **JVM Runtimes** | OpenJDK 17 (Spark) / OpenJDK 8 (Pig) | OpenJDK 8 (Unified) | Execution environment for Hadoop/Pig/Spark |
 | **File Formats** | Parquet (Snappy), CSV, JSON | Parquet, CSV, JSON | Dual analytical export and raw persistence |
 | **Serialization** | PyArrow >= 10.0.0 | PyArrow >= 10.0.0 | High-performance zero-copy columnar I/O |
 | **Data Contracts** | PyYAML >= 6.0 (`config/schemas.yaml`) | PyYAML >= 6.0 (`config/schemas.yaml`) | Central schema contract authority |
+
+> [!NOTE]
+> **Spark 2.4.8 Incompatibility with Python 3.8+ Floor:** PySpark 2.4.8 was released for Python 2.7 and 3.4–3.7 and fails on Python 3.8+ due to syntax and Py4J bytecode incompatibilities. To strictly preserve the SkyWatch Python 3.8 syntax floor (`requires-python = ">=3.8"`), the agreed rollback stack in Project Spec v2.0 (§2, §18) specifies Hadoop 3.2.2, Pig 0.18.0, Spark 3.2.2, and OpenJDK 8.
 
 ---
 
@@ -225,11 +228,11 @@ SkyWatch includes a dedicated benchmarking suite (`benchmarks/run_scale_benchmar
 
 ### Benchmark Results (Single Node Local Execution)
 
-| Scale Factor | Record Count | Pipeline Duration (s) | Throughput (rows/sec) | Peak Memory (MB) | Execution Mode |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| **1x Scale** | 50,000 | 4.01 | 12,468 | 117.7 | Local Simulation / PySpark |
-| **10x Scale** | 500,000 | 41.80 | 11,961 | 486.2 | Local PySpark (2 Cores) |
-| **100x Scale** | 5,000,000 | Distributed | Cluster Mode | Cluster Sized | YARN / Standalone Spark Cluster |
+| Scale Factor | Record Count | Pipeline Duration (s) | Throughput (rows/sec) | Peak Memory (MB) | Execution Mode | Status |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1x Scale** | 50,000 | 4.01 | 12,468 | 117.7 | Local Simulation / PySpark | PASS |
+| **10x Scale** | 500,000 | 41.80 | 11,961 | 486.2 | Local PySpark (2 Cores) | PASS |
+| **100x Scale** | 5,000,000 | N/A | N/A | N/A | Distributed Cluster (YARN) | NOT RUN (Requires Multi-Node Cluster) |
 
 ---
 
@@ -264,7 +267,7 @@ SkyWatch/
 │   ├── hourly_rollup.pig            # Hourly bucketed aggregation
 │   └── station_stats.pig            # Daily station summary statistics
 ├── profiles/                        # Environment runtime profile definitions
-│   ├── lab.env                      # Legacy lab profile (Hadoop 2.7, Pig 0.16, Spark 2.4)
+│   ├── lab.env                      # Agreed lab rollback profile (Hadoop 3.2.2, Pig 0.18, Spark 3.2.2)
 │   └── modern.env                   # Modern profile (Hadoop 3.3, Pig 0.18, Spark 3.5)
 ├── scripts/                         # Automation and runner shell scripts
 │   ├── cron_collect.sh              # Scheduled cron ingestion runner with flock

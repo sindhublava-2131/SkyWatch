@@ -37,6 +37,7 @@ class SparkRunResult:
     records_processed: int
     success: bool
     error_message: Optional[str] = None
+    engine: str = "APACHE_SPARK"
 
 
 def is_spark_available(spark_home: Optional[str] = None) -> bool:
@@ -463,6 +464,8 @@ def _run_standalone_spark_fallback(
 
     total_duration = round(time.time() - start_time, 2)
     logger.info("Completed Spark analytics simulation fallback in %.2fs (7 datasets published)", total_duration)
+    for r in results:
+        r.engine = "STANDALONE_PYTHON_SIMULATION"
     return results
 
 
@@ -474,6 +477,7 @@ def run_spark_analytics(
     force_simulation: bool = False,
     run_id: Optional[str] = None,
     generated_at_utc: Optional[str] = None,
+    require_real_engine: bool = False,
 ) -> List[SparkRunResult]:
     """Execute end-to-end Spark analytical jobs with automatic simulation fallback.
 
@@ -485,6 +489,7 @@ def run_spark_analytics(
         force_simulation: If True, bypass Spark JVM and run pure-Python fallback.
         run_id: Optional pipeline execution identifier.
         generated_at_utc: Optional fixed timestamp for reproducible runs and tests.
+        require_real_engine: If True, fail if native Apache Spark is unavailable.
 
     Returns:
         List of SparkRunResult objects.
@@ -496,19 +501,57 @@ def run_spark_analytics(
     weather_path = Path(input_weather_dir)
     out_path = Path(output_published_dir)
 
+    require_real = (
+        require_real_engine
+        or os.environ.get("SKYWATCH_REQUIRE_REAL_ENGINE", "").lower() in ("1", "true", "yes")
+    )
+
     # Use pure-Python simulation fallback if requested or if Spark JVM is unavailable
-    if force_simulation or not is_spark_available(active_profile.spark_home):
-        logger.info("Running via standalone simulation fallback (force_simulation=%s)", force_simulation)
-        return _run_standalone_spark_fallback(
+    if force_simulation:
+        if require_real:
+            logger.error("[ENGINE: APACHE_SPARK] Simulation fallback requested but real engine is required")
+            raise RuntimeError("Cannot force simulation fallback when real Spark engine is required (SKYWATCH_REQUIRE_REAL_ENGINE=1).")
+        logger.warning("[ENGINE: STANDALONE_PYTHON_SIMULATION] Running via standalone simulation fallback (force_simulation=True)")
+        print("[ENGINE: STANDALONE_PYTHON_SIMULATION] Executing via standalone Python simulation (force_simulation=True)")
+        res = _run_standalone_spark_fallback(
             clean_path,
             weather_path,
             out_path,
             active_run_id,
             generated_at_utc=generated_at_utc,
         )
+        for r in res:
+            r.engine = "STANDALONE_PYTHON_SIMULATION"
+        return res
+
+    if not is_spark_available(active_profile.spark_home):
+        if require_real:
+            logger.error(
+                "[ENGINE: APACHE_SPARK] Apache Spark runtime not available and real engine is required",
+                extra={"spark_home": active_profile.spark_home},
+            )
+            raise RuntimeError(
+                f"Apache Spark runtime not available (SPARK_HOME='{active_profile.spark_home}') and real engine is required."
+            )
+        logger.warning(
+            "[ENGINE: STANDALONE_PYTHON_SIMULATION] Apache Spark runtime not found; executing via standalone Python fallback",
+            extra={"spark_home": active_profile.spark_home},
+        )
+        print("[ENGINE: STANDALONE_PYTHON_SIMULATION] Executing via standalone Python simulation (Spark runtime not found)")
+        res = _run_standalone_spark_fallback(
+            clean_path,
+            weather_path,
+            out_path,
+            active_run_id,
+            generated_at_utc=generated_at_utc,
+        )
+        for r in res:
+            r.engine = "STANDALONE_PYTHON_SIMULATION"
+        return res
 
     # Distributed Spark Execution
-    logger.info("Starting native PySpark execution pipeline (run_id=%s)", active_run_id)
+    logger.info("[ENGINE: APACHE_SPARK] Starting native PySpark execution pipeline (run_id=%s)", active_run_id)
+    print(f"[ENGINE: APACHE_SPARK] Starting native PySpark execution pipeline (run_id={active_run_id})")
     try:
         from skywatch.spark.alert_engine import generate_alerts_dataframe, generate_all_alerts
         from skywatch.spark.common import get_spark, read_clean_dataset
@@ -530,24 +573,24 @@ def run_spark_analytics(
         # 2. Station statistics
         df_stats = compute_station_statistics(df_clean, generated_at_utc=generated_at_utc)
         path_stats = export_published_dataset(df_stats, "station_statistics", out_path, active_run_id)
-        results.append(SparkRunResult("station_statistics", 0, round(time.time() - start_time, 2), str(path_stats), df_stats.count(), True))
+        results.append(SparkRunResult("station_statistics", 0, round(time.time() - start_time, 2), str(path_stats), df_stats.count(), True, engine="APACHE_SPARK"))
 
         # 3. Trends hourly & daily
         df_hourly, df_daily = compute_temporal_trends(df_clean)
         path_th = export_published_dataset(df_hourly, "trends_hourly", out_path, active_run_id)
         path_td = export_published_dataset(df_daily, "trends_daily", out_path, active_run_id)
-        results.append(SparkRunResult("trends_hourly", 0, round(time.time() - start_time, 2), str(path_th), df_hourly.count(), True))
-        results.append(SparkRunResult("trends_daily", 0, round(time.time() - start_time, 2), str(path_td), df_daily.count(), True))
+        results.append(SparkRunResult("trends_hourly", 0, round(time.time() - start_time, 2), str(path_th), df_hourly.count(), True, engine="APACHE_SPARK"))
+        results.append(SparkRunResult("trends_daily", 0, round(time.time() - start_time, 2), str(path_td), df_daily.count(), True, engine="APACHE_SPARK"))
 
         # 4. Weather correlation
         df_corr = compute_weather_correlation(df_hourly, df_weather)
         path_corr = export_published_dataset(df_corr, "weather_correlation", out_path, active_run_id)
-        results.append(SparkRunResult("weather_correlation", 0, round(time.time() - start_time, 2), str(path_corr), df_corr.count(), True))
+        results.append(SparkRunResult("weather_correlation", 0, round(time.time() - start_time, 2), str(path_corr), df_corr.count(), True, engine="APACHE_SPARK"))
 
         # 5. CPCB rolling index
         df_cpcb = compute_cpcb_rolling_index(df_hourly)
         path_cpcb = export_published_dataset(df_cpcb, "cpcb_index", out_path, active_run_id)
-        results.append(SparkRunResult("cpcb_index", 0, round(time.time() - start_time, 2), str(path_cpcb), df_cpcb.count(), True))
+        results.append(SparkRunResult("cpcb_index", 0, round(time.time() - start_time, 2), str(path_cpcb), df_cpcb.count(), True, engine="APACHE_SPARK"))
 
         # 6. Alerts
         clean_rows = [r.asDict() for r in df_clean.collect()]
@@ -556,7 +599,7 @@ def run_spark_analytics(
         alert_rows = generate_all_alerts(cpcb_rows, hourly_rows, clean_rows, reference_time_utc=generated_at_utc)
         df_alerts = generate_alerts_dataframe(spark, alert_rows)
         path_alerts = export_published_dataset(df_alerts, "alerts", out_path, active_run_id)
-        results.append(SparkRunResult("alerts", 0, round(time.time() - start_time, 2), str(path_alerts), len(alert_rows), True))
+        results.append(SparkRunResult("alerts", 0, round(time.time() - start_time, 2), str(path_alerts), len(alert_rows), True, engine="APACHE_SPARK"))
 
         # 7. Quality report
         stage_summaries = [
@@ -566,19 +609,27 @@ def run_spark_analytics(
         ]
         df_qr = build_quality_report(spark, active_run_id, stage_summaries, generated_at_utc=generated_at_utc)
         path_qr = export_published_dataset(df_qr, "quality_report", out_path, active_run_id)
-        results.append(SparkRunResult("quality_report", 0, round(time.time() - start_time, 2), str(path_qr), df_qr.count(), True))
+        results.append(SparkRunResult("quality_report", 0, round(time.time() - start_time, 2), str(path_qr), df_qr.count(), True, engine="APACHE_SPARK"))
 
         return results
 
     except Exception as e:
-        logger.warning("Native PySpark execution failed (%s); falling back to standalone simulation", str(e))
-        return _run_standalone_spark_fallback(
+        if require_real:
+            logger.error("[ENGINE: APACHE_SPARK] Native PySpark execution failed and real engine is required: %s", str(e))
+            raise RuntimeError(f"Native PySpark execution failed and real engine is required: {e}") from e
+
+        logger.warning("[ENGINE: STANDALONE_PYTHON_SIMULATION] Native PySpark execution failed (%s); falling back to standalone simulation", str(e))
+        print(f"[ENGINE: STANDALONE_PYTHON_SIMULATION] Native PySpark execution failed ({e}); falling back to standalone simulation")
+        res = _run_standalone_spark_fallback(
             clean_path,
             weather_path,
             out_path,
             active_run_id,
             generated_at_utc=generated_at_utc,
         )
+        for r in res:
+            r.engine = "STANDALONE_PYTHON_SIMULATION"
+        return res
 
 
 def main() -> None:
@@ -588,6 +639,7 @@ def main() -> None:
     parser.add_argument("--output", default="output/published", help="Output directory for published datasets")
     parser.add_argument("--profile", default=None, help="Active profile name (modern/lab)")
     parser.add_argument("--simulate", "--offline", action="store_true", dest="simulate", help="Force standalone simulation")
+    parser.add_argument("--require-real-engine", action="store_true", help="Fail if Apache Spark runtime is unavailable")
     parser.add_argument("--run-id", default=None, help="Explicit run ID")
 
     args = parser.parse_args()
@@ -598,12 +650,14 @@ def main() -> None:
         profile=load_profile(args.profile),
         force_simulation=args.simulate,
         run_id=args.run_id,
+        require_real_engine=args.require_real_engine,
     )
 
     all_success = all(r.success for r in results)
-    print(f"Spark Analytics completed: {len(results)} stages, success={all_success}")
+    engine_name = results[0].engine if results else "UNKNOWN"
+    print(f"Spark Analytics completed: {len(results)} stages, success={all_success}, engine={engine_name}")
     for r in results:
-        print(f" - [{r.job_name}] records={r.records_processed} duration={r.duration_seconds}s dir={r.output_dir}")
+        print(f" - [{r.job_name}] engine={r.engine} records={r.records_processed} duration={r.duration_seconds}s dir={r.output_dir}")
 
 
 if __name__ == "__main__":

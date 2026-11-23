@@ -2,15 +2,15 @@ name: CI / Test Suite
 
 on:
   push:
-    branches: [main, 'feature/**', 'chore/**']
+    branches: [main, 'feature/**', 'chore/**', 'fix/**', 'docs/**']
   pull_request:
     branches: [main]
 
 jobs:
   test:
-    name: Lint & Pytest Suite
+    name: Lint, Audit & Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,13 +23,59 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest responses psutil pyarrow pyspark pytest-github-actions-annotate-failures
+          pip install ruff pytest pytest-cov responses psutil pyarrow pyspark pytest-github-actions-annotate-failures
           pip install -e .
 
       - name: Run Ruff Lint
         run: |
           ruff check .
 
-      - name: Run Pytest
+      - name: Secrets Scan
         run: |
-          pytest -v --tb=short
+          python -c "
+          import re, sys, os
+          pattern = re.compile(r'(?i)(openaq[_-]?api[_-]?key\s*[:=]\s*[\'\"][a-zA-Z0-9]{16,}[\'\"]|aws_secret_access_key|password\s*[:=]\s*[\'\"][^\'\"]+[\'\"])')
+          found = False
+          for root, _, files in os.walk('.'):
+              if any(skip in root for skip in ['.git', '.venv', '__pycache__']):
+                  continue
+              for f in files:
+                  if f.endswith(('.py', '.yaml', '.yml', '.json', '.env', '.sh', '.md')):
+                      p = os.path.join(root, f)
+                      with open(p, 'r', encoding='utf-8', errors='ignore') as fh:
+                          for i, line in enumerate(fh, 1):
+                              if pattern.search(line) and 'test' not in p and 'mock' not in line:
+                                  print(f'Potential secret in {p}:{i}: {line.strip()[:60]}')
+                                  found = True
+          if found:
+              sys.exit(1)
+          print('Secrets scan passed: no hardcoded credentials found.')
+          "
+
+      - name: Run Pytest with Coverage Gate (80% core logic)
+        run: |
+          pytest -v --tb=short \
+            --cov=skywatch.data.validation \
+            --cov=skywatch.data.normalization \
+            --cov=skywatch.data.deduplication \
+            --cov=skywatch.analytics_core.cpcb \
+            --cov=skywatch.analytics_core.freshness \
+            --cov-report=term \
+            --cov-report=xml \
+            --cov-fail-under=80
+
+      - name: Run Pig ETL Local Job
+        run: |
+          python -m skywatch.pipeline.pig_runner \
+            --script pig/clean_air_quality.pig \
+            --input tests/fixtures/sample_air_quality.csv \
+            --output output/ci_clean_air_quality \
+            --run-date 2026-11-23
+
+      - name: Run Spark Analytics Local Job
+        run: |
+          python -m skywatch.pipeline.spark_runner \
+            --input-clean output/ci_clean_air_quality \
+            --input-weather tests/fixtures/sample_weather_normalized.csv \
+            --output output/ci_published \
+            --simulate

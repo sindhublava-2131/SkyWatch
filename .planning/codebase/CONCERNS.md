@@ -48,9 +48,9 @@ last_mapped_at: 2026-11-23
 ## Scaling Limits
 
 - Tested and benchmarked up to:
-  - 1x Scale (50,000 records): Execution < 10 seconds locally.
-  - 10x Scale (500,000 records): Execution ~ 45 seconds locally.
-  - 100x Scale (5,000,000 records): Requires distributed cluster deployment with dedicated Spark executors.
+  - 1x Scale (50,000 records): Execution < 10 seconds locally. PASS.
+  - 10x Scale (500,000 records): Execution ~ 45 seconds locally. PASS.
+  - 100x Scale (5,000,000 records): NOT RUN locally (requires multi-node distributed cluster deployment with dedicated Spark executors; local single-node driver heap OOM risk).
 
 ## Dependencies at Risk
 

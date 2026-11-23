@@ -38,6 +38,18 @@ def benchmark_scale(
     Returns:
         Dict of benchmark metrics.
     """
+    if scale == "100x" and not os.environ.get("SKYWATCH_ENABLE_100X_LOCAL"):
+        print(f"[{scale}] 100x benchmark (5,000,000 rows) requires a multi-node cluster. Reporting as NOT RUN.")
+        return {
+            "scale": scale,
+            "row_count": row_count,
+            "gen_duration_seconds": None,
+            "duration_seconds": None,
+            "throughput_rows_per_sec": None,
+            "peak_memory_mb": None,
+            "status": "NOT RUN (Requires Multi-Node Cluster)",
+        }
+
     process = psutil.Process(os.getpid())
     mem_before = process.memory_info().rss / (1024 * 1024)
 
@@ -109,9 +121,11 @@ def format_markdown_report(metrics_list: List[Dict[str, Any]], output_path: Path
     ]
 
     for m in metrics_list:
+        dur = f"{m['duration_seconds']:.2f}s" if m.get("duration_seconds") is not None else "N/A"
+        tp = f"{m['throughput_rows_per_sec']:,.1f}" if m.get("throughput_rows_per_sec") is not None else "N/A"
+        mem = f"{m['peak_memory_mb']:.1f} MB" if m.get("peak_memory_mb") is not None else "N/A"
         md_lines.append(
-            f"| **{m['scale']}** | {m['row_count']:,} | {m['duration_seconds']:.2f}s | "
-            f"{m['throughput_rows_per_sec']:,.1f} | {m['peak_memory_mb']:.1f} MB | {m['status']} |"
+            f"| **{m['scale']}** | {m['row_count']:,} | {dur} | {tp} | {mem} | {m['status']} |"
         )
 
     md_lines.extend([
