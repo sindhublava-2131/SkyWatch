@@ -17,7 +17,7 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 - [x] **Phase 1: Foundation, Data Ingestion & Storage Architecture** - Implement project structure, dual profiles (`modern`/`lab`), schemas, OpenAQ/Open-Meteo collectors with fixture fallbacks, validation, deduplication, local and HDFS storage layout, and CLI ingestion commands.
 - [x] **Phase 2: Big Data ETL with Apache Pig & Hadoop HDFS** - Implement Apache Pig data cleansing, distinct deduplication, type casting, sidecar schema generation, daily aggregations, and hourly rollups on HDFS with profile parameterization.
 - [ ] **Phase 3: Analytics Engine with Apache Spark & Scale Benchmarking** - Implement Spark station statistics, temporal trends, weather joins, Pearson correlations with confidence tiers, 24h rolling CPCB PM-based AQI index, alert engine, export publishing, and 1×/10×/100× scale benchmark.
-- [ ] **Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification** - Implement Streamlit multi-page dashboard, unified CLI (`skywatch`), smoke tests (`make smoke`), profile rollback drill, end-to-end test suite (≥80% coverage on core logic), and project documentation.
+- [ ] **Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification** - Wire Next.js 15 interactive dashboard (`frontend/`) to backend REST API, unified CLI (`skywatch`), full-stack integration tests, profile rollback drill, end-to-end test suite (>=80% coverage on core logic), and project documentation.
 
 ## Phase Details
 
@@ -74,20 +74,20 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 ---
 
 ### Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification
-**Goal**: Deliver the multi-page Streamlit dashboard, unified CLI, automated smoke tests, profile rollback drill, and project documentation.  
+**Goal**: Connect and wire the Next.js 15 frontend dashboard to the backend REST API and static data lake, reconcile data contracts, deliver the unified CLI, execute end-to-end and dual-profile verification tests, and produce complete project documentation.  
 **Depends on**: Phase 3  
 **Requirements**: OPS-01, OPS-02, OPS-03, OPS-04, OPS-05, OPS-06, OPS-07  
 **Success Criteria** (what must be TRUE):
-1. Streamlit app runs and renders all 5 pages (Overview, Stations & Map, Analytics, Alerts & Reports, Methodology) with interactive charts, maps, and CSV downloads.
-2. Empty-state banners, stale-data warnings, and data source attributions (OpenAQ, Open-Meteo, CPCB) render when triggered by dataset boundary conditions.
+1. Next.js 15 frontend (`frontend/`) connects seamlessly to the backend REST API (`api/index.py`) and static lake (`output/published/api/v1/`), rendering all 5 views (Overview, Stations MapLibre Explorer, Diurnal & Correlation Analytics, Alerts, Methodology) with zero runtime console errors and strict Zod schema validation.
+2. Data contracts reconciled between backend outputs and frontend schemas (including `station_id` mapping, `freshness_status` badges, IST commute time ranges, and simulation warning banner for `GET /api/v1/meta`).
 3. Unified CLI `skywatch` executes subcommands `discover`, `collect`, `backfill`, `pipeline`, `export`, and `smoke`.
-4. Dual-profile switching script toggles between `modern` and `lab` environments without manual reconfiguration, passing smoke tests with matching row counts and floating point values within $\epsilon < 0.01$.
-5. Complete required project documentation (architecture, data dictionary, test plan, setup guide, methodology, AI usage log, viva notes) and achieve ≥80% unit test coverage on core analytical logic.
+4. Automated end-to-end integration and smoke test suite runs across full pipeline (Ingestion -> Pig -> Spark -> API Lake -> Frontend verification) and proves dual-profile execution across `modern` and `lab` environments.
+5. Frontend production build passes (`pnpm build` / `next build` and TypeScript check `tsc --noEmit`), and backend core logic maintains >=80% test coverage.
 
 #### Plans
-- [ ] 04-01: Streamlit multi-page dashboard UI (data access, components, map visualization, trends, alerts, methodology). `[OPS-01, OPS-02, OPS-03, OPS-04]`
+- [ ] 04-01: Backend-frontend wiring and contract reconciliation: connect Next.js client (`frontend/lib/api.ts`) to backend REST/static endpoints, reconcile Zod schemas (`frontend/lib/schemas.ts`), bind MapLibre GL station map, Recharts diurnal curves with IST ranges, and engine simulation alert banner. `[OPS-01, OPS-02, OPS-03, OPS-04]`
 - [ ] 04-02: Unified CLI entrypoint (`cli.py`), profile switcher script (`use_profile.sh`), and end-to-end pipeline runner (`pipeline_runner.py`). `[OPS-05, OPS-06, OPS-07]`
-- [ ] 04-03: Automated smoke suite (`make smoke`), profile rollback drill (`rollback_drill.sh`), unit & integration test suite (pytest-cov ≥80% line coverage on `src/`), and viva/documentation guides. `[OPS-06, OPS-07]`
+- [ ] 04-03: Full-stack integration test suite, frontend build verification (`next build`), automated smoke suite (`make smoke`), profile rollback drill (`rollback_drill.sh`), and project documentation. `[OPS-06, OPS-07]`
 
 ---
 

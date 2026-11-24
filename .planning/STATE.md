@@ -16,7 +16,7 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-11-23)
 
 **Core value:** Deliver an end-to-end, reproducible, and verifiable big data analytics pipeline and dashboard for Bengaluru air quality with dual-profile execution (`modern` and `lab` rollback) and a concrete scale benchmark.  
-**Current focus:** Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification — Ready to plan
+**Current focus:** Phase 4: Frontend-Backend Wiring, Interactive Dashboard, CLI Integration & Dual-Profile Verification — Ready to plan
 
 ## Current Position
 
