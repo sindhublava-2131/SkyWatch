@@ -47,7 +47,7 @@ Deliver a reproducible, verifiable big data analytics pipeline and dashboard for
 
 - **Academic Context**: Big Data Lab (ISL74) Case-Based Analytics Project.
 - **Data Sources**: OpenAQ API v3 (requires API key, pagination, rate limit handling) and Open-Meteo API (free, coordinate-based hourly weather and archive).
-- **Harness & Tech Stack**: Python 3.8+ compatibility floor, Apache Hadoop 3.x (HDFS, YARN/Local), Apache Pig 0.17+, Apache Spark 3.x (PySpark), Streamlit, Ruff, Pytest.
+- **Harness & Tech Stack**: Python 3.8+ compatibility floor, Apache Hadoop 3.x (HDFS, YARN/Local), Apache Pig 0.17+, Apache Spark 3.x (PySpark), Next.js 15, FastAPI / WSGI, Ruff, Pytest.
 - **Runtime Profiles**:
   - `modern`: OpenJDK 17/21 (Spark), OpenJDK 8 pinned for Apache Pig 0.17, Hadoop 3.4+, Spark 3.5+, Python 3.10+
   - `lab`: OpenJDK 8, Hadoop 3.2.2, Spark 3.2.2, Python 3.8
@@ -71,7 +71,7 @@ Deliver a reproducible, verifiable big data analytics pipeline and dashboard for
 | Apache Pig for Initial ETL on HDFS | Satisfies syllabus requirements while separating initial row-level hygiene from complex analytics | ⏳ Pending |
 | Sidecar `_schema.json` at HDFS Handoff | Protects downstream Spark jobs from schema drift when reading headerless Pig outputs | ⏳ Pending |
 | Apache Spark for Aggregations & Joins | Efficient distributed processing for windowed rolling averages, weather joins, and Pearson correlation | ⏳ Pending |
-| Streamlit with Atomic Directory Staging | Prevents concurrent read contention during analytical export updates | ⏳ Pending |
+| Next.js Dashboard / REST API with Atomic Directory Staging | Prevents concurrent read contention during analytical export updates, delivers responsive client-side visualizations with live/mock toggle | ⏳ Pending |
 
 ---
 *Last updated: 2026-11-22 after EGM Stage 7 remediation*

@@ -46,10 +46,10 @@
 
 ### User Interface & Operations
 
-- [ ] **OPS-01**: Streamlit multi-page dashboard featuring Overview, Stations & Map, Analytics, Alerts & Reports, and Methodology (FR-29).
-- [ ] **OPS-02**: Geospatial station map colored by CPCB category with freshness indicator badges (FR-30).
-- [ ] **OPS-03**: Exportable, downloadable CSV reports directly from the UI (FR-31).
-- [ ] **OPS-04**: Render source attribution (OpenAQ, Open-Meteo, CPCB) on footers and display visual warnings when feeds are empty or stale (>3h) (FR-32, FR-33).
+- [ ] **OPS-01**: Next.js 15 interactive dashboard featuring Overview, Stations & Map, Analytics, Alerts & Reports, and Methodology wired to backend REST API (FR-29).
+- [ ] **OPS-02**: MapLibre GL geospatial station map colored by CPCB category with freshness indicator badges (`Fresh`, `Stale`, `Offline`) (FR-30).
+- [ ] **OPS-03**: Exportable, downloadable CSV reports directly from the UI and static lake endpoints (FR-31).
+- [ ] **OPS-04**: Render source attribution (OpenAQ, Open-Meteo, CPCB) on footers, engine transparency banners (simulation warning), and visual badges when feeds are empty or stale (>3h) (FR-32, FR-33).
 - [ ] **OPS-05**: Unified CLI entrypoint `skywatch` supporting `discover`, `collect`, `backfill`, `pipeline`, `export`, and `smoke` (FR-34).
 - [ ] **OPS-06**: Profile switching script and smoke tests between `modern` and `lab` execution profiles with environment validation (FR-35).
 - [ ] **OPS-07**: Structured run logging across all pipeline stages with unique run identifiers and defined schema (FR-36).
