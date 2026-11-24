@@ -10,13 +10,23 @@ from urllib.parse import parse_qs
 
 # Base data directory lookup
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PUBLISHED_DIR = Path(os.environ.get("SKYWATCH_PUBLISHED_DIR", str(PROJECT_ROOT / "output" / "published")))
-STATIC_API_DIR = PUBLISHED_DIR / "api" / "v1"
+
+
+def get_published_dir() -> Path:
+    return Path(os.environ.get("SKYWATCH_PUBLISHED_DIR", str(PROJECT_ROOT / "output" / "published")))
+
+
+def get_static_api_dir() -> Path:
+    return get_published_dir() / "api" / "v1"
+
+
+PUBLISHED_DIR = get_published_dir()
+STATIC_API_DIR = get_static_api_dir()
 
 
 def _load_dataset(name: str) -> List[Dict[str, Any]]:
     """Load dataset from static JSON cache or parse published CSV on the fly."""
-    json_path = STATIC_API_DIR / f"{name}.json"
+    json_path = get_static_api_dir() / f"{name}.json"
     if json_path.is_file():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
@@ -24,7 +34,7 @@ def _load_dataset(name: str) -> List[Dict[str, Any]]:
         except Exception:
             pass
 
-    csv_path = PUBLISHED_DIR / name / "csv" / "part-00000.csv"
+    csv_path = get_published_dir() / name / "csv" / "part-00000.csv"
     if not csv_path.is_file():
         return []
 
@@ -54,7 +64,7 @@ def _load_dataset(name: str) -> List[Dict[str, Any]]:
 
 def get_meta() -> Dict[str, Any]:
     """Return pipeline execution metadata, profile, and engine."""
-    meta_path = STATIC_API_DIR / "meta.json"
+    meta_path = get_static_api_dir() / "meta.json"
     if meta_path.is_file():
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
