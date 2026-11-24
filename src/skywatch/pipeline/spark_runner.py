@@ -16,7 +16,7 @@ from skywatch.data.schemas import get_column_names
 from skywatch.pipeline.logging import generate_run_id, get_logger
 from skywatch.pipeline.profile import ProfileConfig, _check_java_version, load_profile
 from skywatch.spark.alert_engine import generate_all_alerts
-from skywatch.spark.export import export_published_dataset
+from skywatch.spark.export import export_published_dataset, export_static_api_endpoints
 from skywatch.spark.index_job import (
     calculate_cpcb_rolling_index_records,
     load_stations_metadata,
@@ -466,6 +466,14 @@ def _run_standalone_spark_fallback(
     logger.info("Completed Spark analytics simulation fallback in %.2fs (7 datasets published)", total_duration)
     for r in results:
         r.engine = "STANDALONE_PYTHON_SIMULATION"
+    export_static_api_endpoints(
+        base_output_dir=output_published_dir,
+        run_id=run_id,
+        profile_name="modern",
+        engine_name="STANDALONE_PYTHON_SIMULATION",
+        generated_at_utc=ts,
+        clean_records=clean_records,
+    )
     return results
 
 
@@ -610,6 +618,15 @@ def run_spark_analytics(
         df_qr = build_quality_report(spark, active_run_id, stage_summaries, generated_at_utc=generated_at_utc)
         path_qr = export_published_dataset(df_qr, "quality_report", out_path, active_run_id)
         results.append(SparkRunResult("quality_report", 0, round(time.time() - start_time, 2), str(path_qr), df_qr.count(), True, engine="APACHE_SPARK"))
+
+        export_static_api_endpoints(
+            base_output_dir=out_path,
+            run_id=active_run_id,
+            profile_name=active_profile.profile_name,
+            engine_name="APACHE_SPARK",
+            generated_at_utc=generated_at_utc,
+            clean_records=clean_rows,
+        )
 
         return results
 
