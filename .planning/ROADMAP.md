@@ -16,8 +16,8 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 
 - [x] **Phase 1: Foundation, Data Ingestion & Storage Architecture** - Implement project structure, dual profiles (`modern`/`lab`), schemas, OpenAQ/Open-Meteo collectors with fixture fallbacks, validation, deduplication, local and HDFS storage layout, and CLI ingestion commands.
 - [x] **Phase 2: Big Data ETL with Apache Pig & Hadoop HDFS** - Implement Apache Pig data cleansing, distinct deduplication, type casting, sidecar schema generation, daily aggregations, and hourly rollups on HDFS with profile parameterization.
-- [ ] **Phase 3: Analytics Engine with Apache Spark & Scale Benchmarking** - Implement Spark station statistics, temporal trends, weather joins, Pearson correlations with confidence tiers, 24h rolling CPCB PM-based AQI index, alert engine, export publishing, and 1×/10×/100× scale benchmark.
-- [ ] **Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification** - Wire Next.js 15 interactive dashboard (`frontend/`) to backend REST API, unified CLI (`skywatch`), full-stack integration tests, profile rollback drill, end-to-end test suite (>=80% coverage on core logic), and project documentation.
+- [x] **Phase 3: Analytics Engine with Apache Spark & Scale Benchmarking** - Implement Spark station statistics, temporal trends, weather joins, Pearson correlations with confidence tiers, 24h rolling CPCB PM-based AQI index, alert engine, export publishing, and 1×/10×/100× scale benchmark.
+- [x] **Phase 4: Interactive Dashboard, CLI Integration & Dual-Profile Verification** - Wire Next.js 15 interactive dashboard (`frontend/`) to backend REST API, unified CLI (`skywatch`), full-stack integration tests, profile rollback drill, end-to-end test suite (>=80% coverage on core logic), and project documentation.
 
 ## Phase Details
 
@@ -85,9 +85,9 @@ Before executing Phase 1 plans or running end-to-end pipelines:
 5. Frontend production build passes (`pnpm build` / `next build` and TypeScript check `tsc --noEmit`), and backend core logic maintains >=80% test coverage.
 
 #### Plans
-- [ ] 04-01: Backend-frontend wiring and contract reconciliation: connect Next.js client (`frontend/lib/api.ts`) to backend REST/static endpoints, reconcile Zod schemas (`frontend/lib/schemas.ts`), bind MapLibre GL station map, Recharts diurnal curves with IST ranges, and engine simulation alert banner. `[OPS-01, OPS-02, OPS-03, OPS-04]`
-- [ ] 04-02: Unified CLI entrypoint (`cli.py`), profile switcher script (`use_profile.sh`), and end-to-end pipeline runner (`pipeline_runner.py`). `[OPS-05, OPS-06, OPS-07]`
-- [ ] 04-03: Full-stack integration test suite, frontend build verification (`next build`), automated smoke suite (`make smoke`), profile rollback drill (`rollback_drill.sh`), and project documentation. `[OPS-06, OPS-07]`
+- [x] 04-01: Backend-frontend wiring and contract reconciliation: connect Next.js client (`frontend/lib/api.ts`) to backend REST/static endpoints, reconcile Zod schemas (`frontend/lib/schemas.ts`), bind MapLibre GL station map, Recharts diurnal curves with IST ranges, and engine simulation alert banner. `[OPS-01, OPS-02, OPS-03, OPS-04]`
+- [x] 04-02: Unified CLI entrypoint (`cli.py`), profile switcher script (`use_profile.sh`), and end-to-end pipeline runner (`pipeline_runner.py`). `[OPS-05, OPS-06, OPS-07]`
+- [x] 04-03: Full-stack integration test suite, frontend build verification (`next build`), automated smoke suite (`make smoke`), profile rollback drill (`rollback_drill.sh`), and project documentation. `[OPS-06, OPS-07]`
 
 ---
 
@@ -101,4 +101,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Foundation, Data Ingestion & Storage Architecture | 3/3 | Completed | 2026-11-22 |
 | 2. Big Data ETL with Apache Pig & Hadoop HDFS | 2/2 | Completed | 2026-11-22 |
 | 3. Analytics Engine with Apache Spark & Scale Benchmarking | 3/3 | Completed | 2026-11-23 |
-| 4. Interactive Dashboard, CLI Integration & Dual-Profile Verification | 0/3 | Ready to plan | - |
+| 4. Interactive Dashboard, CLI Integration & Dual-Profile Verification | 3/3 | Completed | 2026-11-24 |

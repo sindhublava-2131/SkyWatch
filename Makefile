@@ -1,10 +1,10 @@
 # SkyWatch Automation Makefile
-# Targets: test, lint, coverage, smoke, demo, clean
+# Targets: test, lint, coverage, smoke, demo, clean, frontend-check, frontend-build, e2e, drill
 
 PROFILE ?= modern
 PYTHON ?= python3
 
-.PHONY: all test lint coverage smoke smoke-simulation demo demo-simulation clean help
+.PHONY: all test lint coverage smoke smoke-simulation demo demo-simulation clean help frontend-check frontend-build e2e drill
 
 all: lint test
 
@@ -17,6 +17,10 @@ help:
 	@echo "  make smoke-simulation   - Run smoke acceptance gate allowing simulation fallback"
 	@echo "  make demo [PROFILE=..]  - Run demo on sample data (fails if real engine missing)"
 	@echo "  make demo-simulation    - Run demo on sample data allowing simulation fallback"
+	@echo "  make frontend-check     - Run TypeScript static typecheck on Next.js frontend"
+	@echo "  make frontend-build     - Build Next.js 15 production dashboard"
+	@echo "  make e2e                - Run full-stack backend-to-frontend end-to-end tests"
+	@echo "  make drill              - Run dual-profile rollback verification drill"
 	@echo "  make clean              - Remove temporary build, smoke, and test artifacts"
 
 lint:
@@ -47,5 +51,19 @@ demo:
 demo-simulation:
 	ALLOW_SIMULATION=1 bash scripts/demo.sh $(PROFILE) --allow-simulation
 
+frontend-check:
+	pnpm --dir frontend exec tsc --noEmit
+
+frontend-build:
+	pnpm --dir frontend build
+
+e2e:
+	$(PYTHON) -m pytest tests/integration/test_full_stack_e2e.py -v
+	pnpm --dir frontend exec tsc --noEmit
+	pnpm --dir frontend build
+
+drill:
+	bash scripts/rollback_drill.sh --allow-simulation
+
 clean:
-	rm -rf data/smoke output/demo data/benchmarks output/clean_air_quality output/published .pytest_cache .coverage coverage.xml
+	rm -rf data/smoke output/demo data/benchmarks output/clean_air_quality output/published data/drill output/drill_modern output/drill_lab .pytest_cache .coverage coverage.xml

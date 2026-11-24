@@ -63,6 +63,7 @@ data/logs/*
 data/.watermarks.json
 data/.backfill_checkpoint.json
 data/smoke/
+data/drill/
 output/
 
 # IDE / Editor

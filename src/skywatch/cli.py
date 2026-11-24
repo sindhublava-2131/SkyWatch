@@ -71,6 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
         "pipeline",
         help="Execute end-to-end pipeline (Ingestion -> Pig Cleansing -> Spark Analytics -> API Export)",
     )
+    pipeline_p.add_argument("--profile", choices=["modern", "lab"], default="modern", help="Target execution profile")
     pipeline_p.add_argument("--offline", action="store_true", help="Run collection in offline mode using mock fixtures")
     pipeline_p.add_argument("--simulate", action="store_true", help="Allow standalone simulation fallback for engines")
     pipeline_p.add_argument("--require-real-engine", action="store_true", help="Fail if native Pig or Spark missing")
@@ -88,6 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # 6. smoke
     smoke_p = subparsers.add_parser("smoke", help="Run end-to-end acceptance smoke test")
+    smoke_p.add_argument("--profile", choices=["modern", "lab"], default="modern", help="Target execution profile")
     smoke_p.add_argument("--simulate", action="store_true", help="Allow simulation fallback in smoke run")
     smoke_p.add_argument("--require-real-engine", action="store_true", help="Enforce real native big data engines")
     smoke_p.add_argument("--offline", action="store_true", default=True, help="Use offline test fixtures")

@@ -7,8 +7,9 @@
 [![Apache Spark](https://img.shields.io/badge/Apache_Spark-3.5%20%7C%202.4-E25A1C.svg?style=flat-square&logo=apachespark&logoColor=white)](src/skywatch/spark/)
 [![Apache Hadoop](https://img.shields.io/badge/Apache_Hadoop-3.3%20%7C%202.7-66CCFF.svg?style=flat-square&logo=apachehadoop&logoColor=black)](src/skywatch/storage/)
 [![Apache Pig](https://img.shields.io/badge/Apache_Pig-0.18%20%7C%200.16-EE0000.svg?style=flat-square&logo=apache&logoColor=white)](pig/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000.svg?style=flat-square&logo=nextdotjs&logoColor=white)](frontend/)
 [![Code Style](https://img.shields.io/badge/Code_Style-Ruff-000000.svg?style=flat-square&logo=ruff&logoColor=white)](pyproject.toml)
-[![Test Suite](https://img.shields.io/badge/Tests-104_Passed-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Test Suite](https://img.shields.io/badge/Tests-118_Passed-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
 ---
@@ -75,6 +76,14 @@ flowchart TD
         Job_Quality --> ExportPub
         ExportPub --> StagingDir[".staging_{dataset}_{run_id}"]
         StagingDir -->|Atomic Directory Swap| FinalPub["output/published/ (Dual Parquet + CSV + Schema)"]
+    end
+
+    subgraph Serving["6. REST API & Interactive UI Tier"]
+        FinalPub --> ExportAPI["export_static_api_endpoints()"]
+        ExportAPI --> StaticLake["Static Lake (output/published/api/v1/*.json)"]
+        StaticLake --> RestAPI["Serverless REST API (api/index.py)"]
+        RestAPI --> NextUI["Next.js 15 Interactive Dashboard (frontend/)"]
+        StaticLake -.-> NextUI
     end
 ```
 
@@ -355,14 +364,14 @@ pip install -e ".[dev]"
 Switch between modern production and lab rollback profiles:
 
 ```bash
-# Switch to modern profile (Hadoop 3.3.6, Pig 0.18.0, Spark 3.5.0)
+# Switch to modern profile (Hadoop 3.4.3, Pig 0.18.0, Spark 4.3.0)
 source scripts/use_profile.sh modern
 
-# Switch to legacy lab rollback profile (Hadoop 2.7.7, Pig 0.16.0, Spark 2.4.8)
+# Switch to legacy lab rollback profile (Hadoop 3.2.2, Pig 0.18.0, Spark 3.2.2)
 source scripts/use_profile.sh lab
 
 # Validate environment binaries and Java paths
-source scripts/use_profile.sh validate
+bash scripts/use_profile.sh modern
 ```
 
 ### 8.3 Ingestion Commands
@@ -387,8 +396,28 @@ python3 -m skywatch.cli backfill --start-date 2026-01-01 --end-date 2026-06-30
 # Run Apache Spark analytics pipeline and publish datasets
 ./scripts/run_spark.sh modern
 
-# Execute scale benchmark suite (1x, 10x, 100x regimes)
-python3 benchmarks/run_scale_benchmark.py --scales 1x,10x
+# Execute end-to-end multi-stage pipeline via unified CLI
+skywatch pipeline --profile modern --offline --simulate
+
+# Execute dual-profile rollback verification drill
+bash scripts/rollback_drill.sh --allow-simulation
+```
+
+### 8.5 Interactive Frontend Dashboard (Next.js 15)
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install UI dependencies
+pnpm install
+
+# Start Next.js 15 development server
+pnpm dev
+
+# Run static typecheck and production build
+pnpm exec tsc --noEmit
+pnpm build
 ```
 
 ---
