@@ -19,8 +19,11 @@ if [ -f ".venv/bin/python" ]; then
 fi
 
 ALLOW_SIMULATION=0
+KEEP_ARTIFACTS=0
 for arg in "$@"; do
-    if [[ "$arg" == "--allow-simulation" || "$arg" == "--simulate" ]]; then
+    if [[ "$arg" == "--keep-artifacts" ]]; then
+        KEEP_ARTIFACTS=1
+    elif [[ "$arg" == "--allow-simulation" || "$arg" == "--simulate" ]]; then
         ALLOW_SIMULATION=1
     fi
 done
@@ -35,6 +38,15 @@ fi
 
 DRILL_MODERN="output/drill_modern"
 DRILL_LAB="output/drill_lab"
+
+cleanup() {
+    exit_code=$?
+    if [ "$exit_code" -eq 0 ] && [ "$KEEP_ARTIFACTS" -ne 1 ]; then
+        echo "[DRILL] Cleaning up temporary drill directories..."
+        rm -rf "$DRILL_MODERN" "$DRILL_LAB" data/drill
+    fi
+}
+trap cleanup EXIT
 
 rm -rf "$DRILL_MODERN" "$DRILL_LAB" data/drill
 mkdir -p data/drill

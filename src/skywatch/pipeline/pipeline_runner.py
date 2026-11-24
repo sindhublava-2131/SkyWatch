@@ -10,6 +10,7 @@ Propagates a unified run_id across all stages and emits structured execution sum
 """
 from __future__ import annotations
 
+import os
 import shutil
 import time
 from dataclasses import asdict, dataclass, field
@@ -90,6 +91,7 @@ def run_pipeline(
         PipelineRunSummary with timings, record counts, and status per stage.
     """
     active_profile = load_profile(profile_name)
+    os.environ["SKYWATCH_PROFILE"] = active_profile.profile_name
     active_run_id = run_id or generate_run_id()
     start_dt = datetime.now(timezone.utc)
     start_ts = start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")

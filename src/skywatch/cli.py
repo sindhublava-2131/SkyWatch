@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -108,6 +109,8 @@ def main(args: Optional[List[str]] = None) -> int:
 
     try:
         profile_name = getattr(parsed, "profile", "modern")
+        if profile_name:
+            os.environ["SKYWATCH_PROFILE"] = profile_name
 
         if parsed.subcommand == "discover":
             client = OpenAQClient(offline=parsed.offline)
