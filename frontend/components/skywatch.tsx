@@ -238,6 +238,11 @@ function Overview({
   alerts: Alert[]
   hourly: HourlyTrend[]
 }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const reporting = stations.filter((s) => s.freshness_status === 'fresh').length
   const staleOrOffline = stations.filter((s) => s.freshness_status !== 'fresh').length
   const validIndexes = indexes.filter((i) => i.aqi_value !== null)
@@ -366,31 +371,35 @@ function Overview({
           Diurnal hourly average across reporting stations with Indian Standard Time mapping; morning traffic peak highlighted.
         </p>
         <figure className="chart">
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={hourly} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
-              <XAxis
-                dataKey="ist_label"
-                tick={{ fontSize: 11, fill: 'var(--muted-text)', fontFamily: 'var(--font-mono)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: 'var(--muted-text)', fontFamily: 'var(--font-mono)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip />
-              <Area
-                type="monotone"
-                dataKey="average_value"
-                name="PM2.5 µg/m³"
-                stroke="var(--accent)"
-                fill="var(--accent-soft)"
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {mounted ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={hourly} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
+                <XAxis
+                  dataKey="ist_label"
+                  tick={{ fontSize: 11, fill: 'var(--muted-text)', fontFamily: 'var(--font-mono)' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--muted-text)', fontFamily: 'var(--font-mono)' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip />
+                <Area
+                  type="monotone"
+                  dataKey="average_value"
+                  name="PM2.5 µg/m³"
+                  stroke="var(--accent)"
+                  fill="var(--accent-soft)"
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: 220 }} />
+          )}
           <figcaption>Hourly PM2.5 average across the city; morning peak corresponds to 08:30 - 09:30 IST.</figcaption>
         </figure>
       </Panel>
@@ -512,6 +521,11 @@ function Analytics({
   indexes: AirIndex[]
   hourly: HourlyTrend[]
 }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const [parameter, setParameter] = useState<'pm25' | 'pm10'>('pm25')
   const chartData = useMemo(() => {
     return hourly.map((d) => ({
@@ -592,31 +606,35 @@ function Analytics({
             Hourly buckets mapped to Indian Standard Time (IST). Peak emissions coincide with traffic hours (08:30 - 09:30 IST).
           </p>
           <figure className="chart">
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData}>
-                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
-                <XAxis
-                  dataKey="hour"
-                  interval={3}
-                  tick={{ fontSize: 10, fill: 'var(--muted-text)', fontFamily: 'var(--font-mono)' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: 'var(--muted-text)' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <ReferenceLine y={60} stroke="#F28C2B" strokeDasharray="4 4" label="NAAQS 24 h limit" />
-                <Tooltip />
-                <Bar
-                  dataKey="average_value"
-                  name="µg/m³"
-                  fill="var(--accent)"
-                  isAnimationActive={false}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {mounted ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={chartData}>
+                  <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 4" />
+                  <XAxis
+                    dataKey="hour"
+                    interval={3}
+                    tick={{ fontSize: 10, fill: 'var(--muted-text)', fontFamily: 'var(--font-mono)' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: 'var(--muted-text)' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <ReferenceLine y={60} stroke="#F28C2B" strokeDasharray="4 4" label="NAAQS 24 h limit" />
+                  <Tooltip />
+                  <Bar
+                    dataKey="average_value"
+                    name="µg/m³"
+                    fill="var(--accent)"
+                    isAnimationActive={false}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 280 }} />
+            )}
             <figcaption>Citywide hourly PM2.5 average; reference line indicates National Ambient Air Quality Standard (60 µg/m³).</figcaption>
           </figure>
         </Panel>

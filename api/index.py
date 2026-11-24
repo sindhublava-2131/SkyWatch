@@ -20,8 +20,13 @@ def get_static_api_dir() -> Path:
     return get_published_dir() / "api" / "v1"
 
 
-PUBLISHED_DIR = get_published_dir()
-STATIC_API_DIR = get_static_api_dir()
+def __getattr__(name: str) -> Any:
+    """Provide dynamic backwards-compatible access to directory paths."""
+    if name == "PUBLISHED_DIR":
+        return get_published_dir()
+    if name == "STATIC_API_DIR":
+        return get_static_api_dir()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 def _load_dataset(name: str) -> List[Dict[str, Any]]:
@@ -84,8 +89,9 @@ def get_stations(status: Optional[str] = None, freshness: Optional[str] = None) 
     """Return CAAQMS stations enriched with reading timestamp and freshness status."""
     stations = _load_dataset("stations")
     if not stations:
-        # Fallback to config/stations.json
-        cfg_stations = PROJECT_ROOT / "config" / "stations.json"
+        # Check static API directory first, then config/stations.json fallback
+        static_stations = get_static_api_dir() / "stations.json"
+        cfg_stations = static_stations if static_stations.is_file() else PROJECT_ROOT / "config" / "stations.json"
         if cfg_stations.is_file():
             try:
                 from skywatch.spark.export import compute_station_freshness
@@ -96,6 +102,8 @@ def get_stations(status: Optional[str] = None, freshness: Optional[str] = None) 
                 stations = []
 
     res = stations
+    if status and status.lower() != "all":
+        res = [s for s in res if str(s.get("status", "")).lower() == status.lower()]
     if freshness:
         res = [s for s in res if str(s.get("freshness_status", "")).lower() == freshness.lower()]
     return res
