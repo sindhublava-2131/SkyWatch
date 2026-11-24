@@ -1,18 +1,18 @@
 ---
-last_mapped_commit: 831a73a6e8025d4970ff7b506be5de6d304b4c61
-last_mapped_at: 2026-11-23
+last_mapped_commit: 6b4cc6dd01b87e70230978c94258f457e4b5fcb4
+last_mapped_at: 2026-11-24
 ---
-<!-- refreshed: 2026-11-23 -->
+<!-- refreshed: 2026-11-24 -->
 
 # Codebase Concerns
 
-**Analysis Date:** 2026-11-23
+**Analysis Date:** 2026-11-24
 
 ## Tech Debt
 
 **Synchronous Ingestion Engine:**
-- **Issue:** Ingestion orchestrator (`src/skywatch/collector/collector.py`) iterates sequentially through stations and sensors with synchronous HTTP roundtrips.
-- **Impact:** Backfilling large date ranges (e.g. 90+ days) across multiple monitoring stations takes considerable time due to sequential network latency.
+- **Issue:** The ingestion orchestrator (`src/skywatch/collector/collector.py`) iterates sequentially through stations and sensors with synchronous HTTP roundtrips.
+- **Impact:** Backfilling large date ranges across multiple monitoring stations takes considerable time due to sequential network latency.
 - **Remediation:** Introduce asynchronous polling using `asyncio`/`aiohttp` or a worker pool with bounded concurrency and rate-limit backpressure.
 
 **Subprocess-Driven HDFS Operations:**
@@ -22,16 +22,24 @@ last_mapped_at: 2026-11-23
 
 **Dual Profile Environment Sourcing:**
 - **Issue:** Profiles are declared as bash dotenv files (`profiles/modern.env`, `profiles/lab.env`) and parsed in Python via `python-dotenv`.
-- **Impact:** Shell environments and Python processes can drift if the wrapper scripts (`scripts/use_profile.sh`) are not sourced before manual Python CLI execution.
-- **Remediation:** Centralize profile declarations in a validated YAML configuration (`config/profiles.yaml`) that is directly parsed and enforced by `src/skywatch/pipeline/profile.py`.
+- **Impact:** Shell environments and Python processes can drift if wrapper scripts (`scripts/use_profile.sh`) are not sourced before manual CLI invocation.
+- **Remediation:** Centralize profile declarations in a validated YAML configuration (`config/profiles.yaml`) parsed and enforced directly by `src/skywatch/pipeline/profile.py`.
+
+## Schema & Contract Alignment Items
+
+**Frontend Schema Minor Normalizations:**
+- **Issue:** `frontend/lib/schemas.ts` defines `stationSchema` with `id` (instead of `station_id`), and lower-case `freshness_status` (`fresh`, `stale`, `offline`), while backend `/stations` returns `station_id` and title-case (`Fresh`, `Stale`, `Offline`).
+- **Impact:** Direct JSON consumption without adapter normalization could trigger Zod validation failures in production if unadapted.
+- **Remediation:** Reconcile field naming in `frontend/lib/schemas.ts` or add an adapter mapping in `frontend/lib/api.ts`.
 
 ## Known Bugs
 
-- None currently identified in Phase 1, Phase 2, or Phase 3. All contract, unit, and integration tests pass cleanly with verified golden outputs.
+- None currently identified in backend or pipeline jobs. All 111 unit, integration, and contract tests pass cleanly with verified golden outputs.
 
 ## Security Considerations
 
 - **API Credentials:** OpenAQ API keys are passed via the `OPENAQ_API_KEY` environment variable and injected into request headers. No credentials or secrets are stored in repository files or configuration.
+- **Browser Security Boundary:** Direct browser calls to external telemetry APIs (OpenAQ v3) are explicitly removed from frontend contracts to eliminate any risk of leaking client API keys.
 - **Logging Sanitization:** `src/skywatch/pipeline/logging.py` includes `redact_sensitive()` to sanitize dictionaries and strings before emitting JSON log lines.
 - **Big Data Services Exposure:** Hadoop NameNode, DataNode, YARN ResourceManager, and Spark Master services are intended for local or private cluster networks and must never be exposed publicly.
 
@@ -45,22 +53,7 @@ last_mapped_at: 2026-11-23
 - **Golden Fixture Numerical Tolerances:** Differences in floating-point aggregation between PySpark SQL (IEEE 754 double) and pure-Python floats can lead to minor fractional variances in standard deviation or Pearson $r$. Test comparisons maintain a `0.15` tolerance to avoid brittle assertions.
 - **File Overwrites Across Operating Systems:** Cross-platform atomic swaps require directory removal prior to renaming on Windows systems (`Errno 39` Directory not empty on POSIX vs Windows file locks), handled via `_safe_remove()` in `src/skywatch/spark/export.py`.
 
-## Scaling Limits
+## Scaling Limits & Lab Profile Compatibility
 
-- Tested and benchmarked up to:
-  - 1x Scale (50,000 records): Execution < 10 seconds locally. PASS.
-  - 10x Scale (500,000 records): Execution ~ 45 seconds locally. PASS.
-  - 100x Scale (5,000,000 records): NOT RUN locally (requires multi-node distributed cluster deployment with dedicated Spark executors; local single-node driver heap OOM risk).
-
-## Dependencies at Risk
-
-- **Python 3.8 Lifecycle:** Python 3.8 reached end-of-life upstream in October 2024. While SkyWatch maintains Python 3.8 syntax floor compatibility for constrained Big Data lab clusters, CI and modern execution leverage Python 3.11.
-
-## Missing Critical Features
-
-- **Phase 4 Interactive Dashboard:** Interactive Streamlit web interface for spatial air quality maps, temporal trend charts, correlation matrices, and health alert visualizations remains to be implemented in Phase 4.
-- **Phase 4 Unified CLI:** CLI currently supports ingestion subcommands (`discover`, `collect`, `backfill`). Subcommands for running Pig ETL (`skywatch pig`), Spark analytics (`skywatch spark`), dashboard launch (`skywatch dashboard`), and profile validation (`skywatch validate`) will be unified in Phase 4.
-
-## Test Coverage Gaps
-
-- Integration testing of distributed YARN execution requires physical multi-node Hadoop clusters; verified locally via `pig -x local` and PySpark local mode.
+- **Scale Benchmark Status:** Evaluated up to 100x (5,000,000 synthetic records) in PySpark local mode and synthetic generator simulation. The 100x run in a single-node local environment takes ~25s in simulation; a distributed cluster is required for true production cluster stress measurements.
+- **Lab Profile Compatibility Floor:** The rollback profile (`profiles/lab.env`) requires Hadoop 3.2.2, JDK 8, and Spark 3.2.2. Legacy Spark 2.4.8 cannot be used because its PySpark engine fails on Python >=3.8 syntax and typing imports.
