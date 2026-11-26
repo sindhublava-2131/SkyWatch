@@ -1,12 +1,12 @@
 ---
 last_mapped_commit: 6b4cc6dd01b87e70230978c94258f457e4b5fcb4
-last_mapped_at: 2026-11-24
+last_mapped_at: 2026-11-26
 ---
-<!-- refreshed: 2026-11-24 -->
+<!-- refreshed: 2026-11-26 -->
 
 # Architecture
 
-**Analysis Date:** 2026-11-24
+**Analysis Date:** 2026-11-26
 
 ## System Overview
 
@@ -98,14 +98,25 @@ flowchart TD
    - `src/skywatch/pipeline/spark_runner.py`: Orchestrates the complete analytical execution pipeline with standalone simulation fallback.
 
 6. **REST API & Delivery Tier (`api/`):**
-   - `api/index.py`: Serverless REST endpoint supporting FastAPI and WSGI fallback, exposing `/meta`, `/stations`, `/aqi/cpcb-index`, `/analytics/station-statistics`, `/analytics/trends/hourly`, `/analytics/trends/daily`, `/analytics/weather-correlation`, `/alerts`, and `/audit/quality-report`.
+   - `api/index.py`: Serverless REST endpoint supporting FastAPI and WSGI fallback, exposing all 9 atomic analytical endpoints:
+     - `GET /api/v1/meta`: Engine verification, execution profile, and generation timestamps.
+     - `GET /api/v1/stations`: Monitoring stations, geospatial coordinates, and freshness telemetry.
+     - `GET /api/v1/aqi/cpcb-index`: 24-hour rolling CPCB PM-based sub-indices and ratings.
+     - `GET /api/v1/analytics/trends/hourly`: Diurnal 24-hour hourly concentrations with UTC and IST mapping.
+     - `GET /api/v1/analytics/trends/daily`: Day-of-week relative aggregation and variance profiles.
+     - `GET /api/v1/analytics/station-statistics`: Multi-metric station summary statistics and rankings.
+     - `GET /api/v1/analytics/weather-correlation`: Meteorology equijoins, Pearson $r$, and confidence tiers.
+     - `GET /api/v1/alerts`: Health threshold exceedances, telemetry dropouts, and spikes.
+     - `GET /api/v1/audit/quality-report`: Multi-stage pipeline reconciliation and audit diagnostics.
 
 7. **Interactive Dashboard Tier (`frontend/`):**
-   - `frontend/app/page.tsx`: City-wide overview with real-time AQI badge, dominant pollutant, and simulation warning banner.
-   - `frontend/app/stations/page.tsx`: Interactive MapLibre GL map view with station freshness indicators and sensor details.
-   - `frontend/app/analytics/page.tsx`: Recharts visualizations for diurnal 24-hour traffic cycles and weather correlation scatterplots.
-   - `frontend/app/alerts/page.tsx`: Categorized table of health threshold breaches, spikes, and sensor dropouts.
-   - `frontend/app/methodology/page.tsx`: Transparent explanation of CPCB India breakpoints, data provenance, and runtime profile configuration.
+   - `frontend/components/skywatch.tsx`: Unified dashboard implementation consuming all 9 data loaders with zero placeholder data in production:
+     - `Overview`: Dynamically computes citywide mean PM2.5 and PM10 concentrations from active station telemetry rather than hardcoded constants.
+     - `Stations`: Projects monitoring stations onto the Bengaluru bounding box using actual coordinates (`[77.45, 12.83, 77.75, 13.12]`) with telemetry freshness indicators.
+     - `Analytics`: Displays real station rankings, min/max/average concentrations, dynamic day-of-week relative distribution bars, and real Pearson $r$ correlation coefficients.
+     - `Alerts`: Features real health, telemetry, and spike alerts alongside a dedicated Pipeline Data Quality Audit panel reflecting stage records and real dataset CSV downloads.
+   - `frontend/lib/api.ts`: Type-safe client orchestrating parallel `Promise.all` fetching across all 9 endpoints with Zod runtime validation and mock fallbacks populated with real published data.
+   - `frontend/lib/schemas.ts`: Zod validation schemas supporting integer/string station ID coercion and ISO-8601 UTC timestamp validation.
 
 ## Core Architectural Patterns
 

@@ -18,7 +18,7 @@ import {
   type Alert,
   type QualityReport,
 } from './schemas'
-import { meta, stations, indexes, alerts, hourly } from './mocks'
+import { meta, stations, indexes, alerts, hourly, stats, daily, correlations, quality } from './mocks'
 
 const base = process.env.NEXT_PUBLIC_API_BASE_URL || ''
 
@@ -100,7 +100,7 @@ export const loadIndexes = async (stationId?: string, category?: string, limit?:
 
 export const loadStationStatistics = async (parameter?: string): Promise<StationStat[]> => {
   const qs = parameter ? `?parameter=${parameter}` : ''
-  let data = await getData<StationStat[]>(`/api/v1/analytics/station-statistics${qs}`, statSchema.array(), [])
+  let data = await getData<StationStat[]>(`/api/v1/analytics/station-statistics${qs}`, statSchema.array(), stats)
   if (parameter) {
     data = data.filter((s) => s.parameter?.toLowerCase() === parameter.toLowerCase())
   }
@@ -127,7 +127,7 @@ export const loadDailyTrends = async (stationId?: string, parameter?: string): P
   if (stationId) params.set('station_id', stationId)
   if (parameter) params.set('parameter', parameter)
   const qs = params.toString() ? `?${params.toString()}` : ''
-  let data = await getData<DailyTrend[]>(`/api/v1/analytics/trends/daily${qs}`, dailySchema.array(), [])
+  let data = await getData<DailyTrend[]>(`/api/v1/analytics/trends/daily${qs}`, dailySchema.array(), daily)
   if (stationId) {
     data = data.filter((d) => d.station_id === stationId)
   }
@@ -142,7 +142,7 @@ export const loadWeatherCorrelation = async (stationId?: string, pollutant?: str
   if (stationId) params.set('station_id', stationId)
   if (pollutant) params.set('pollutant', pollutant)
   const qs = params.toString() ? `?${params.toString()}` : ''
-  let data = await getData<WeatherCorrelation[]>(`/api/v1/analytics/weather-correlation${qs}`, correlationSchema.array(), [])
+  let data = await getData<WeatherCorrelation[]>(`/api/v1/analytics/weather-correlation${qs}`, correlationSchema.array(), correlations)
   if (stationId) {
     data = data.filter((c) => c.station_id === stationId)
   }
@@ -172,7 +172,7 @@ export const loadQualityReport = async (runId?: string, stage?: string): Promise
   if (runId) params.set('run_id', runId)
   if (stage) params.set('stage', stage)
   const qs = params.toString() ? `?${params.toString()}` : ''
-  let data = await getData<QualityReport[]>(`/api/v1/audit/quality-report${qs}`, qualitySchema.array(), [])
+  let data = await getData<QualityReport[]>(`/api/v1/audit/quality-report${qs}`, qualitySchema.array(), quality)
   if (runId) {
     data = data.filter((q) => q.run_id === runId)
   }

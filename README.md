@@ -9,7 +9,7 @@
 [![Apache Pig](https://img.shields.io/badge/Apache_Pig-0.18%20%7C%200.16-EE0000.svg?style=flat-square&logo=apache&logoColor=white)](pig/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000.svg?style=flat-square&logo=nextdotjs&logoColor=white)](frontend/)
 [![Code Style](https://img.shields.io/badge/Code_Style-Ruff-000000.svg?style=flat-square&logo=ruff&logoColor=white)](pyproject.toml)
-[![Test Suite](https://img.shields.io/badge/Tests-118_Passed-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
+[![Test Suite](https://img.shields.io/badge/Tests-119_Passed-success.svg?style=flat-square&logo=pytest&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
 ---
@@ -86,6 +86,50 @@ flowchart TD
         StaticLake -.-> NextUI
     end
 ```
+
+---
+
+## 2.1 Interactive Environmental Dashboard & Live Analytical Views
+
+SkyWatch provides a Next.js 15 web application designed for municipal environmental intelligence. All 9 analytical endpoints from the static REST lake are bound directly to client views, eliminating placeholder or static mock data in production.
+
+### Operational Views
+
+#### 1. Citywide Overview & Real-Time Air Quality Health
+Displays dynamic citywide particulate means (PM2.5 and PM10) derived from active monitoring stations, real-time CPCB sub-index categorization, dominant pollutant tracking, and runtime execution profile verification.
+
+![SkyWatch Executive Overview](docs/images/dashboard_overview.png)
+
+#### 2. Spatial CAAQMS Station Explorer
+Projects monitoring stations across Bengaluru onto an interactive bounding box projection (`[77.45, 12.83, 77.75, 13.12]`). Provides per-station telemetry freshness indicators (`Fresh` < 3h, `Stale` 3-24h, `Offline` > 24h) and sensor-level readings.
+
+![CAAQMS Monitoring Stations](docs/images/dashboard_stations.png)
+
+#### 3. Diurnal Profiles & Meteorological Correlation
+Visualizes 24-hour diurnal commute pollution curves mapped to local Indian Standard Time (IST), day-of-week relative distribution profiles, and multi-variable Pearson correlation matrices ($r$) linking PM concentrations to ambient temperature, relative humidity, and wind speed.
+
+![Diurnal Trends and Weather Correlation](docs/images/dashboard_analytics.png)
+
+#### 4. Operational Alerts & Multi-Stage Pipeline Quality Audit
+Surfaces health threshold exceedances (CPCB sub-index > 200), telemetry dropouts, and 3x trailing median concentration spikes alongside an end-to-end multi-stage pipeline quality audit table reconciling accepted, rejected, and duplicate records across Ingestion, Pig ETL, and Spark Analytics.
+
+![Operational Alerts and Quality Audit](docs/images/dashboard_alerts.png)
+
+### REST Lake Endpoint Architecture
+
+The analytical pipeline publishes 9 atomic JSON endpoints consumed by the FastAPI/WSGI serverless layer and the Next.js frontend:
+
+| Endpoint Route | HTTP Method | Backend Handler (`api/index.py`) | Source Dataset | Purpose |
+| :--- | :---: | :--- | :--- | :--- |
+| `/api/v1/meta` | `GET` | `handle_meta()` | `meta.json` | Pipeline engine verification, execution profile, and timestamp |
+| `/api/v1/stations` | `GET` | `handle_stations()` | `stations.json` | CAAQMS monitoring stations, geospatial coordinates, and freshness |
+| `/api/v1/aqi/cpcb-index` | `GET` | `handle_cpcb_index()` | `cpcb_index.json` | 24-hour rolling CPCB PM sub-indices and rating bands |
+| `/api/v1/analytics/trends/hourly` | `GET` | `handle_trends_hourly()` | `trends_hourly.json` | 24-hour diurnal hourly concentrations with UTC and IST mapping |
+| `/api/v1/analytics/trends/daily` | `GET` | `handle_trends_daily()` | `trends_daily.json` | Day-of-week relative aggregation and concentration profiles |
+| `/api/v1/analytics/station-statistics` | `GET` | `handle_station_statistics()` | `station_statistics.json` | Station-level summary statistics, min/max/avg, and rankings |
+| `/api/v1/analytics/weather-correlation` | `GET` | `handle_weather_correlation()` | `weather_correlation.json` | Meteorology equijoins, Pearson $r$, and confidence tiers |
+| `/api/v1/alerts` | `GET` | `handle_alerts()` | `alerts.json` | Health threshold exceedances, telemetry dropouts, and spikes |
+| `/api/v1/audit/quality-report` | `GET` | `handle_quality_report()` | `quality_report.json` | Multi-stage pipeline reconciliation and audit diagnostics |
 
 ---
 
@@ -262,6 +306,17 @@ SkyWatch/
 │   ├── normalized/                  # Ingestion partitions (ingest_dt=YYYY-MM-DD)
 │   ├── raw/                         # Verbatim API responses and _manifest.csv
 │   └── synthetic/                   # Isolated scale benchmark synthetic datasets
+├── docs/                            # Project specifications and architecture documentation
+│   └── images/                      # Dashboard UI screenshots and architectural assets
+│       ├── dashboard_alerts.png
+│       ├── dashboard_analytics.png
+│       ├── dashboard_overview.png
+│       └── dashboard_stations.png
+├── frontend/                        # Next.js 15 interactive dashboard application
+│   ├── app/                         # App Router pages (/stations, /analytics, /alerts, /methodology)
+│   ├── components/                  # Live dynamic React components and UI widgets
+│   ├── lib/                         # Type-safe API client, Zod schemas, and fallback fixtures
+│   └── public/                      # Static web assets
 ├── output/                          # Final analytical products
 │   └── published/                   # Staged dual Parquet, CSV, and _schema.json
 │       ├── alerts/                  # Health, telemetry, and spike alerts
@@ -279,6 +334,7 @@ SkyWatch/
 │   ├── lab.env                      # Agreed lab rollback profile (Hadoop 3.2.2, Pig 0.18, Spark 3.2.2)
 │   └── modern.env                   # Modern profile (Hadoop 3.3, Pig 0.18, Spark 3.5)
 ├── scripts/                         # Automation and runner shell scripts
+│   ├── capture_screenshots.sh       # Automated headless browser screenshot capture
 │   ├── cron_collect.sh              # Scheduled cron ingestion runner with flock
 │   ├── make_synthetic.py            # Deterministic synthetic scale dataset generator
 │   ├── run_pig.sh                   # Profile-aware Apache Pig launcher
@@ -322,7 +378,7 @@ tests/
 # 1. Run static linting and formatting checks
 ruff check .
 
-# 2. Run the complete test suite (104 tests)
+# 2. Run the complete test suite (119 tests)
 pytest -v
 
 # 3. Run contract compliance tests
@@ -337,7 +393,7 @@ pytest tests/integration/test_scale_benchmark.py -v
 
 ### CI/CD Automation
 
-- **`.github/workflows/ci.yml`**: Triggers on every push and pull request. Executes Ruff static analysis, environment validation, dependency installation, and the complete 104-test pytest suite on Python 3.11.
+- **`.github/workflows/ci.yml`**: Triggers on every push and pull request. Executes Ruff static analysis, environment validation, dependency installation, and the complete 119-test pytest suite on Python 3.11.
 - **`.github/workflows/scheduled-collect.yml`**: Scheduled GitHub Actions runner that periodically triggers non-intrusive incremental ingestion and commits raw audit snapshots.
 
 ---

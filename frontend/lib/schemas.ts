@@ -4,6 +4,8 @@ const utc = z.string().datetime({ offset: true }).or(
   z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/)
 )
 
+const stringId = z.union([z.string(), z.number()]).transform(v => String(v))
+
 export const metaSchema = z.object({
   run_id: z.string(),
   generated_at_utc: utc,
@@ -13,12 +15,12 @@ export const metaSchema = z.object({
 })
 
 export const stationSchema = z.object({
-  id: z.string().optional(),
-  station_id: z.string().optional(),
+  id: stringId.optional(),
+  station_id: stringId.optional(),
   name: z.string(),
   latitude: z.number(),
   longitude: z.number(),
-  parameters: z.array(z.string()),
+  parameters: z.array(z.string()).optional().default(['PM2.5', 'PM10']),
   last_measurement_time_utc: utc.nullable().optional(),
   freshness_status: z.string().transform(v => {
     const lower = v.toLowerCase()
@@ -33,7 +35,7 @@ export const stationSchema = z.object({
 }))
 
 export const indexSchema = z.object({
-  station_id: z.string(),
+  station_id: stringId,
   station_name: z.string(),
   window_end_utc: utc,
   pm25_24h_avg: z.number().nullable(),
@@ -49,44 +51,44 @@ export const indexSchema = z.object({
 })
 
 export const statSchema = z.object({
-  station_id: z.string(),
+  station_id: stringId,
   station_name: z.string(),
   parameter: z.string(),
-  reading_count: z.number(),
+  reading_count: z.number().optional().default(0),
   average_value: z.number(),
   minimum_value: z.number(),
   maximum_value: z.number(),
-  pollution_rank: z.number(),
-  generated_at_utc: utc,
+  pollution_rank: z.number().optional().default(1),
+  generated_at_utc: utc.optional(),
 })
 
 export const hourlySchema = z.object({
-  station_id: z.string(),
+  station_id: stringId,
   parameter: z.string(),
   hour_of_day: z.number().int().min(0).max(23),
   hour_of_day_utc: z.number().int().optional(),
   ist_time_range: z.string().optional(),
   ist_label: z.string().optional(),
   average_value: z.number(),
-  reading_count: z.number(),
+  reading_count: z.number().optional().default(0),
   is_peak_hour: z.boolean().optional().default(false),
 })
 
 export const dailySchema = z.object({
-  station_id: z.string(),
+  station_id: stringId,
   parameter: z.string(),
   day_of_week: z.string(),
   day_name: z.string().optional(),
   average_value: z.number(),
-  reading_count: z.number(),
+  reading_count: z.number().optional().default(0),
 })
 
 export const correlationSchema = z.object({
-  station_id: z.string(),
+  station_id: stringId,
   pollutant: z.string(),
   weather_variable: z.string(),
   pearson_r: z.number().nullable(),
-  sample_count: z.number(),
+  sample_count: z.number().optional().default(0),
   confidence_tier: z.string(),
 })
 
@@ -94,7 +96,7 @@ export const alertSchema = z.object({
   alert_id: z.string(),
   alert_type: z.string(),
   severity: z.string(),
-  station_id: z.string(),
+  station_id: stringId,
   station_name: z.string(),
   timestamp_utc: utc.optional(),
   created_at_utc: utc.optional(),

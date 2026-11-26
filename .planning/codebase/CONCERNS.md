@@ -1,12 +1,12 @@
 ---
 last_mapped_commit: 6b4cc6dd01b87e70230978c94258f457e4b5fcb4
-last_mapped_at: 2026-11-24
+last_mapped_at: 2026-11-26
 ---
-<!-- refreshed: 2026-11-24 -->
+<!-- refreshed: 2026-11-26 -->
 
 # Codebase Concerns
 
-**Analysis Date:** 2026-11-24
+**Analysis Date:** 2026-11-26
 
 ## Tech Debt
 
@@ -25,16 +25,15 @@ last_mapped_at: 2026-11-24
 - **Impact:** Shell environments and Python processes can drift if wrapper scripts (`scripts/use_profile.sh`) are not sourced before manual CLI invocation.
 - **Remediation:** Centralize profile declarations in a validated YAML configuration (`config/profiles.yaml`) parsed and enforced directly by `src/skywatch/pipeline/profile.py`.
 
-## Schema & Contract Alignment Items
+## Schema & Contract Alignment Items (Resolved)
 
-**Frontend Schema Minor Normalizations:**
-- **Issue:** `frontend/lib/schemas.ts` defines `stationSchema` with `id` (instead of `station_id`), and lower-case `freshness_status` (`fresh`, `stale`, `offline`), while backend `/stations` returns `station_id` and title-case (`Fresh`, `Stale`, `Offline`).
-- **Impact:** Direct JSON consumption without adapter normalization could trigger Zod validation failures in production if unadapted.
-- **Remediation:** Reconcile field naming in `frontend/lib/schemas.ts` or add an adapter mapping in `frontend/lib/api.ts`.
+**Frontend Schema Normalization and Placeholder Elimination:**
+- **Status:** Fully Resolved.
+- **Resolution:** `frontend/lib/schemas.ts` and `frontend/lib/api.ts` have been reconciled to handle numeric/string station ID unions (`z.union([z.string(), z.number()]).transform(v => String(v))`) and optional metadata fields. Furthermore, `frontend/lib/mocks/index.ts` was populated with genuine published datasets (`stats`, `daily`, `correlations`, `quality`) and `frontend/components/skywatch.tsx` has replaced all hardcoded figures with dynamic computations from real analytical feeds.
 
 ## Known Bugs
 
-- None currently identified in backend or pipeline jobs. All 111 unit, integration, and contract tests pass cleanly with verified golden outputs.
+- None currently identified in backend or pipeline jobs. All 119 unit, integration, and contract tests pass cleanly with verified golden outputs.
 
 ## Security Considerations
 

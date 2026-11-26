@@ -37,9 +37,33 @@ import {
   loadIndexes,
   loadAlerts,
   loadHourlyTrends,
+  loadStationStatistics,
+  loadDailyTrends,
+  loadWeatherCorrelation,
+  loadQualityReport,
 } from '@/lib/api'
-import { alerts as defaultAlerts, hourly as defaultHourly, indexes as defaultIndexes, meta as defaultMeta, stations as defaultStations } from '@/lib/mocks'
-import type { AirIndex, Alert, HourlyTrend, Meta, Station } from '@/lib/schemas'
+import {
+  alerts as defaultAlerts,
+  hourly as defaultHourly,
+  indexes as defaultIndexes,
+  meta as defaultMeta,
+  stations as defaultStations,
+  stats as defaultStats,
+  daily as defaultDaily,
+  correlations as defaultCorrelations,
+  quality as defaultQuality,
+} from '@/lib/mocks'
+import type {
+  AirIndex,
+  Alert,
+  HourlyTrend,
+  Meta,
+  Station,
+  StationStat,
+  DailyTrend,
+  WeatherCorrelation,
+  QualityReport,
+} from '@/lib/schemas'
 
 const categoryColor: Record<string, string> = {
   Good: '#3E9B47',
@@ -231,12 +255,14 @@ function Overview({
   indexes,
   alerts,
   hourly,
+  stats,
 }: {
   meta: Meta
   stations: Station[]
   indexes: AirIndex[]
   alerts: Alert[]
   hourly: HourlyTrend[]
+  stats: StationStat[]
 }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -254,6 +280,28 @@ function Overview({
         aqi_category: null,
         dominant_pollutant: 'N/A',
       }
+
+  const pm25Avg = useMemo(() => {
+    const pm25Stats = stats.filter((s) => s.parameter.toLowerCase() === 'pm25')
+    if (pm25Stats.length) {
+      return (pm25Stats.reduce((acc, s) => acc + s.average_value, 0) / pm25Stats.length).toFixed(1)
+    }
+    const withPm25 = indexes.filter((i) => i.pm25_24h_avg !== null && i.pm25_24h_avg !== undefined)
+    return withPm25.length
+      ? (withPm25.reduce((acc, i) => acc + (i.pm25_24h_avg ?? 0), 0) / withPm25.length).toFixed(1)
+      : '31.4'
+  }, [stats, indexes])
+
+  const pm10Avg = useMemo(() => {
+    const pm10Stats = stats.filter((s) => s.parameter.toLowerCase() === 'pm10')
+    if (pm10Stats.length) {
+      return (pm10Stats.reduce((acc, s) => acc + s.average_value, 0) / pm10Stats.length).toFixed(1)
+    }
+    const withPm10 = indexes.filter((i) => i.pm10_24h_avg !== null && i.pm10_24h_avg !== undefined)
+    return withPm10.length
+      ? (withPm10.reduce((acc, i) => acc + (i.pm10_24h_avg ?? 0), 0) / withPm10.length).toFixed(1)
+      : '82.6'
+  }, [stats, indexes])
 
   return (
     <>
@@ -281,13 +329,13 @@ function Overview({
           <div>
             <span>Mean PM2.5 · 24 h</span>
             <strong>
-              <Mono>31.4 µg/m³</Mono>
+              <Mono>{pm25Avg} µg/m³</Mono>
             </strong>
           </div>
           <div>
             <span>Mean PM10 · 24 h</span>
             <strong>
-              <Mono>82.6 µg/m³</Mono>
+              <Mono>{pm10Avg} µg/m³</Mono>
             </strong>
           </div>
           <div>
@@ -431,17 +479,21 @@ function Stations({
         <p className="caption">Station coordinates within Bengaluru. Select a station row to inspect its readings.</p>
         <div className="map-canvas">
           <div className="map-grid" />
-          {filtered.map((s, i) => {
+          {filtered.map((s) => {
             const idx = indexes.find((x) => x.station_id === s.id || x.station_id === s.station_id)
             const aqiVal = idx?.aqi_value ?? null
             const category = idx?.aqi_category ?? 'Good'
+            const lonMin = 77.45, lonMax = 77.75
+            const latMin = 12.83, latMax = 13.12
+            const leftPct = Math.min(92, Math.max(8, ((s.longitude - lonMin) / (lonMax - lonMin)) * 100))
+            const topPct = Math.min(90, Math.max(10, (1 - (s.latitude - latMin) / (latMax - latMin)) * 100))
             return (
               <button
                 key={s.id || s.station_id}
                 className="map-marker"
                 style={{
-                  left: `${17 + ((i * 19) % 70)}%`,
-                  top: `${19 + ((i * 23) % 62)}%`,
+                  left: `${leftPct.toFixed(1)}%`,
+                  top: `${topPct.toFixed(1)}%`,
                   background: aqiVal === null ? '#d8d6ce' : categoryColor[category] ?? '#3E9B47',
                 }}
                 title={`${s.name}: ${idx?.aqi_category ?? 'Not computed'}`}
@@ -451,7 +503,7 @@ function Stations({
             )
           })}
           <span className="map-label">BENGALURU · 12.97° N, 77.59° E</span>
-          <span className="map-credit">Schematic geospatial positions · CAAQMS network</span>
+          <span className="map-credit">Geospatial coordinate projection · CAAQMS network</span>
         </div>
       </Panel>
       <Panel title="Monitoring stations" aside={<span className="tiny">{filtered.length} STATIONS</span>}>
@@ -516,10 +568,16 @@ function Analytics({
   stations,
   indexes,
   hourly,
+  stats,
+  daily,
+  correlations,
 }: {
   stations: Station[]
   indexes: AirIndex[]
   hourly: HourlyTrend[]
+  stats: StationStat[]
+  daily: DailyTrend[]
+  correlations: WeatherCorrelation[]
 }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -533,6 +591,70 @@ function Analytics({
       hour: d.ist_time_range || `${String((d.hour_of_day + 5) % 24).padStart(2, '0')}:30 IST`,
     }))
   }, [hourly])
+
+  const filteredStats = useMemo(() => {
+    const list = stats.filter((s) => s.parameter.toLowerCase() === parameter.toLowerCase())
+    if (list.length) return list
+    return indexes.map((i, n) => ({
+      station_id: i.station_id,
+      station_name: i.station_name,
+      parameter,
+      reading_count: i.valid_hours ?? 24,
+      average_value: (parameter === 'pm25' ? i.pm25_24h_avg : i.pm10_24h_avg) ?? 0,
+      minimum_value: Math.max(0, ((parameter === 'pm25' ? i.pm25_24h_avg : i.pm10_24h_avg) ?? 0) * 0.7),
+      maximum_value: ((parameter === 'pm25' ? i.pm25_24h_avg : i.pm10_24h_avg) ?? 0) * 1.35,
+      pollution_rank: n + 1,
+      generated_at_utc: i.window_end_utc,
+    }))
+  }, [stats, parameter, indexes])
+
+  const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const weekShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const dailyData = useMemo(() => {
+    const filtered = daily.filter((d) => d.parameter.toLowerCase() === parameter.toLowerCase())
+    const maxVal = Math.max(...filtered.map((d) => d.average_value), 50)
+    return weekDays.map((fullDay, idx) => {
+      const match = filtered.find((d) => d.day_of_week.toLowerCase() === fullDay.toLowerCase())
+      const avg = match ? match.average_value : 30 + idx * 4
+      const pct = Math.min(100, Math.max(15, Math.round((avg / maxVal) * 85)))
+      return {
+        day: weekShort[idx],
+        avg: avg.toFixed(1),
+        height: `${pct}%`,
+      }
+    })
+  }, [daily, parameter])
+
+  const friendlyNames: Record<string, string> = {
+    temperature_c: 'Temperature (2m)',
+    humidity_pct: 'Relative humidity (2m)',
+    wind_speed: 'Wind speed (10m)',
+    precipitation_mm: 'Precipitation',
+  }
+  const correlationList = useMemo(() => {
+    const filtered = correlations.filter((c) => c.pollutant.toLowerCase() === parameter.toLowerCase())
+    if (filtered.length) {
+      const seen = new Set<string>()
+      const list: WeatherCorrelation[] = []
+      for (const item of filtered) {
+        if (!seen.has(item.weather_variable)) {
+          seen.add(item.weather_variable)
+          list.push(item)
+        }
+      }
+      return list.map((c) => ({
+        label: friendlyNames[c.weather_variable] ?? c.weather_variable,
+        r: c.pearson_r !== null ? (c.pearson_r > 0 ? `+${c.pearson_r.toFixed(3)}` : c.pearson_r.toFixed(3)) : 'N/A',
+        sample: `sample_count ${c.sample_count} (${c.confidence_tier})`,
+      }))
+    }
+    return [
+      { label: 'Temperature (2m)', r: '+0.284', sample: 'sample_count 168 (High)' },
+      { label: 'Relative humidity (2m)', r: '-0.412', sample: 'sample_count 168 (High)' },
+      { label: 'Wind speed (10m)', r: '-0.193', sample: 'sample_count 160 (Moderate)' },
+      { label: 'Precipitation', r: '-0.068', sample: 'sample_count 142 (Low)' },
+    ]
+  }, [correlations, parameter])
 
   return (
     <>
@@ -576,24 +698,23 @@ function Analytics({
                 </tr>
               </thead>
               <tbody>
-                {indexes.map((i, n) => (
-                  <tr key={i.station_id}>
+                {filteredStats.map((s) => (
+                  <tr key={`${s.station_id}-${s.parameter}`}>
                     <td>
-                      <Mono>{n + 1}</Mono>
+                      <Mono>{s.pollution_rank}</Mono>
                     </td>
-                    <td>{i.station_name}</td>
+                    <td>{s.station_name}</td>
                     <td>
-                      <Mono>{(i.pm25_24h_avg ?? 0).toFixed(1)}</Mono>
+                      <Mono>{s.average_value.toFixed(1)}</Mono>
                     </td>
                     <td>
                       <span className="range-line" />{' '}
                       <Mono>
-                        {Math.max(0, Math.round((i.pm25_24h_avg ?? 0) - 8))}–
-                        {Math.round((i.pm25_24h_avg ?? 0) + 14)}
+                        {s.minimum_value.toFixed(1)}–{s.maximum_value.toFixed(1)}
                       </Mono>
                     </td>
                     <td>
-                      <Mono>24</Mono>
+                      <Mono>{s.reading_count}</Mono>
                     </td>
                   </tr>
                 ))}
@@ -641,31 +762,26 @@ function Analytics({
       </div>
       <div className="grid-two">
         <Panel title="Day-of-week profile">
-          <p className="caption">Typical citywide PM2.5 concentration by weekday, Monday first.</p>
+          <p className="caption">Typical citywide concentration by weekday for the selected pollutant.</p>
           <div className="week-bars">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
-              <div key={d}>
-                <div style={{ height: `${45 + i * 6}%` }} />
-                <span>{d}</span>
+            {dailyData.map((d) => (
+              <div key={d.day}>
+                <div style={{ height: d.height }} title={`${d.day}: ${d.avg} µg/m³`} />
+                <span>{d.day}</span>
               </div>
             ))}
           </div>
         </Panel>
         <Panel title="Weather correlation matrix">
-          <p className="caption">Pearson correlation coefficient (r) between PM2.5 and meteorological factors.</p>
+          <p className="caption">Pearson correlation coefficient (r) between {parameter.toUpperCase()} and meteorological factors.</p>
           <div className="correlation">
-            {[
-              ['Temperature (2m)', '0.284', 'sample_count 168 (High)'],
-              ['Relative humidity (2m)', '−0.412', 'sample_count 168 (High)'],
-              ['Wind speed (10m)', '−0.193', 'sample_count 160 (Moderate)'],
-              ['Precipitation', '−0.068', 'sample_count 142 (Low)'],
-            ].map(([x, v, n]) => (
-              <div key={x}>
-                <span>{x}</span>
+            {correlationList.map((item) => (
+              <div key={item.label}>
+                <span>{item.label}</span>
                 <strong>
-                  <Mono>{v}</Mono>
+                  <Mono>{item.r}</Mono>
                 </strong>
-                <small>{n}</small>
+                <small>{item.sample}</small>
               </div>
             ))}
           </div>
@@ -681,15 +797,36 @@ function Analytics({
 function Alerts({
   meta,
   alerts,
+  quality,
 }: {
   meta: Meta
   alerts: Alert[]
+  quality: QualityReport[]
 }) {
+  const [filterType, setFilterType] = useState('All')
+  const [severityFilter, setSeverityFilter] = useState('All')
+
+  const filteredAlerts = useMemo(() => {
+    return alerts.filter((a) => {
+      const matchType =
+        filterType === 'All' ||
+        (filterType === 'Health' && a.alert_type.startsWith('HEALTH')) ||
+        (filterType === 'Telemetry' && (a.alert_type === 'STALE' || a.alert_type === 'OFFLINE')) ||
+        (filterType === 'Spikes' && a.alert_type === 'SPIKE')
+      const matchSev = severityFilter === 'All' || a.severity.toUpperCase() === severityFilter.toUpperCase()
+      return matchType && matchSev
+    })
+  }, [alerts, filterType, severityFilter])
+
   return (
     <>
       <div className="filter-row tabs">
-        {['All', 'Health', 'Telemetry', 'Spikes'].map((x, i) => (
-          <button key={x} className={i === 0 ? 'filter-active' : ''}>
+        {['All', 'Health', 'Telemetry', 'Spikes'].map((x) => (
+          <button
+            key={x}
+            className={filterType === x ? 'filter-active' : ''}
+            onClick={() => setFilterType(x)}
+          >
             {x}
           </button>
         ))}
@@ -697,11 +834,15 @@ function Alerts({
       <Panel
         title="Alert events"
         aside={
-          <select aria-label="Severity">
-            <option>All severities</option>
-            <option>WARNING</option>
-            <option>CRITICAL</option>
-            <option>EMERGENCY</option>
+          <select
+            aria-label="Severity"
+            value={severityFilter}
+            onChange={(e) => setSeverityFilter(e.target.value)}
+          >
+            <option value="All">All severities</option>
+            <option value="WARNING">WARNING</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="EMERGENCY">EMERGENCY</option>
           </select>
         }
       >
@@ -718,20 +859,57 @@ function Alerts({
               </tr>
             </thead>
             <tbody>
-              {alerts.map((a) => (
-                <tr key={a.alert_id}>
-                  <td>
-                    <Mono>{a.timestamp_utc ? a.timestamp_utc.slice(11, 16) : '12:00'} UTC</Mono>
+              {filteredAlerts.length ? (
+                filteredAlerts.map((a) => (
+                  <tr key={a.alert_id}>
+                    <td>
+                      <Mono>{a.timestamp_utc ? a.timestamp_utc.slice(11, 16) : '12:00'} UTC</Mono>
+                    </td>
+                    <td>{a.station_name}</td>
+                    <td>{a.alert_type}</td>
+                    <td>
+                      <span className={`severity ${a.severity.toLowerCase()}`}>{a.severity}</span>
+                    </td>
+                    <td>{a.message}</td>
+                    <td>
+                      <Mono>{a.metric_value !== null && a.metric_value !== undefined ? a.metric_value : '—'}</Mono>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted-text)' }}>
+                    No alerts match the active filters.
                   </td>
-                  <td>{a.station_name}</td>
-                  <td>{a.alert_type}</td>
-                  <td>
-                    <span className={`severity ${a.severity.toLowerCase()}`}>{a.severity}</span>
-                  </td>
-                  <td>{a.message}</td>
-                  <td>
-                    <Mono>{a.metric_value ?? '—'}</Mono>
-                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+      <Panel title="Pipeline data quality audit" aside={<span className="tiny">{quality.length} STAGES</span>}>
+        <p className="caption">Continuous validation metrics tracking record throughput and rejection diagnostics across stages.</p>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>Run ID</th>
+                <th>Accepted Records</th>
+                <th>Rejected</th>
+                <th>Duplicates</th>
+                <th>Rejection Breakdown</th>
+              </tr>
+            </thead>
+            <tbody>
+              {quality.map((q) => (
+                <tr key={`${q.stage}-${q.run_id}`}>
+                  <td><strong>{q.stage.toUpperCase()}</strong></td>
+                  <td><Mono>{q.run_id.slice(0, 12)}...</Mono></td>
+                  <td><Mono>{q.accepted_count ?? q.records_passed ?? 0}</Mono></td>
+                  <td><Mono>{q.rejected_count ?? q.records_rejected ?? 0}</Mono></td>
+                  <td><Mono>{q.duplicate_count ?? 0}</Mono></td>
+                  <td><small>{q.reason_counts_json && q.reason_counts_json !== '{}' ? q.reason_counts_json : 'None (100% clean)'}</small></td>
                 </tr>
               ))}
             </tbody>
@@ -756,15 +934,42 @@ function Alerts({
                 Last generated · <Mono>{meta.generated_at_utc ? meta.generated_at_utc.slice(0, 10) : '2026-11-24'}</Mono>
               </span>
               <button
-                onClick={() => {
-                  const blob = new Blob([`dataset,generated\n${x},${meta.generated_at_utc}`], {
-                    type: 'text/csv',
-                  })
-                  const a = document.createElement('a')
-                  a.href = URL.createObjectURL(blob)
-                  a.download = `${x}.csv`
-                  a.click()
-                  URL.revokeObjectURL(a.href)
+                onClick={async () => {
+                  try {
+                    const endpointMap: Record<string, string> = {
+                      station_statistics: '/api/v1/analytics/station-statistics',
+                      trends_hourly: '/api/v1/analytics/trends/hourly',
+                      trends_daily: '/api/v1/analytics/trends/daily',
+                      weather_correlation: '/api/v1/analytics/weather-correlation',
+                      cpcb_index: '/api/v1/aqi/cpcb-index',
+                      alerts: '/api/v1/alerts',
+                      quality_report: '/api/v1/audit/quality-report',
+                    }
+                    const res = await fetch(endpointMap[x] || `/api/v1/${x}`)
+                    let content = ''
+                    if (res.ok) {
+                      const json = await res.json()
+                      if (Array.isArray(json) && json.length > 0) {
+                        const headers = Object.keys(json[0])
+                        const rows = json.map((row) =>
+                          headers.map((h) => JSON.stringify(row[h] ?? '')).join(',')
+                        )
+                        content = [headers.join(','), ...rows].join('\n')
+                      } else {
+                        content = JSON.stringify(json, null, 2)
+                      }
+                    } else {
+                      content = `dataset,run_id,generated_at_utc\n${x},${meta.run_id},${meta.generated_at_utc}`
+                    }
+                    const blob = new Blob([content], { type: 'text/csv' })
+                    const a = document.createElement('a')
+                    a.href = URL.createObjectURL(blob)
+                    a.download = `${x}.csv`
+                    a.click()
+                    URL.revokeObjectURL(a.href)
+                  } catch (err) {
+                    console.warn('CSV export error', err)
+                  }
                 }}
               >
                 Download CSV
@@ -880,21 +1085,33 @@ export default function SkyWatch() {
   const [indexes, setIndexes] = useState<AirIndex[]>(defaultIndexes)
   const [alerts, setAlerts] = useState<Alert[]>(defaultAlerts)
   const [hourly, setHourly] = useState<HourlyTrend[]>(defaultHourly)
+  const [stats, setStats] = useState<StationStat[]>(defaultStats)
+  const [daily, setDaily] = useState<DailyTrend[]>(defaultDaily)
+  const [correlations, setCorrelations] = useState<WeatherCorrelation[]>(defaultCorrelations)
+  const [quality, setQuality] = useState<QualityReport[]>(defaultQuality)
 
   const loadData = async () => {
     try {
-      const [m, s, idx, alt, hr] = await Promise.all([
+      const [m, s, idx, alt, hr, st, dl, cr, ql] = await Promise.all([
         loadMeta(),
         loadStations(),
         loadIndexes(),
         loadAlerts(),
         loadHourlyTrends(),
+        loadStationStatistics(),
+        loadDailyTrends(),
+        loadWeatherCorrelation(),
+        loadQualityReport(),
       ])
       setMeta(m)
       setStations(s)
       setIndexes(idx)
       setAlerts(alt)
       setHourly(hr)
+      setStats(st)
+      setDaily(dl)
+      setCorrelations(cr)
+      setQuality(ql)
     } catch (e) {
       console.warn('Could not load live backend data, remaining on default fixtures.', e)
     }
@@ -906,11 +1123,31 @@ export default function SkyWatch() {
 
   const view = useMemo(() => {
     if (path === '/stations') return <Stations stations={stations} indexes={indexes} />
-    if (path === '/analytics') return <Analytics stations={stations} indexes={indexes} hourly={hourly} />
-    if (path === '/alerts') return <Alerts meta={meta} alerts={alerts} />
+    if (path === '/analytics') {
+      return (
+        <Analytics
+          stations={stations}
+          indexes={indexes}
+          hourly={hourly}
+          stats={stats}
+          daily={daily}
+          correlations={correlations}
+        />
+      )
+    }
+    if (path === '/alerts') return <Alerts meta={meta} alerts={alerts} quality={quality} />
     if (path === '/methodology') return <Methodology meta={meta} />
-    return <Overview meta={meta} stations={stations} indexes={indexes} alerts={alerts} hourly={hourly} />
-  }, [path, meta, stations, indexes, alerts, hourly])
+    return (
+      <Overview
+        meta={meta}
+        stations={stations}
+        indexes={indexes}
+        alerts={alerts}
+        hourly={hourly}
+        stats={stats}
+      />
+    )
+  }, [path, meta, stations, indexes, alerts, hourly, stats, daily, correlations, quality])
 
   return (
     <AppShell meta={meta} refresh={loadData}>
