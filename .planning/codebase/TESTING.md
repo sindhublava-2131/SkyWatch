@@ -1,10 +1,10 @@
 ---
 last_mapped_commit: 6b4cc6dd01b87e70230978c94258f457e4b5fcb4
-last_mapped_at: 2026-11-24
+last_mapped_at: 2026-11-26
 ---
 # Testing Patterns
 
-**Analysis Date:** 2026-11-24
+**Analysis Date:** 2026-11-26
 
 ## Test Frameworks
 
@@ -81,7 +81,7 @@ tests/
 
 ## Running Tests
 
-- Run all backend tests: `.venv/bin/pytest -v` (111 tests passing)
+- Run all backend tests: `.venv/bin/pytest -v` (119 tests passing)
 - Run unit tests: `.venv/bin/pytest tests/unit/`
 - Run integration tests: `.venv/bin/pytest tests/integration/`
 - Run contract tests: `.venv/bin/pytest tests/contract/`

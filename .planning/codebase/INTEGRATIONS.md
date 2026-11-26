@@ -1,10 +1,10 @@
 ---
 last_mapped_commit: 6b4cc6dd01b87e70230978c94258f457e4b5fcb4
-last_mapped_at: 2026-11-24
+last_mapped_at: 2026-11-26
 ---
 # External Integrations
 
-**Analysis Date:** 2026-11-24
+**Analysis Date:** 2026-11-26
 
 ## External APIs & Services
 
@@ -58,10 +58,15 @@ last_mapped_at: 2026-11-24
 
 **Data Fetching & Validation Layer (`frontend/lib/api.ts`):**
 - Configuration: Controlled by environment variables `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_USE_MOCKS`.
-- Fallback Fixtures: When `NEXT_PUBLIC_USE_MOCKS` is enabled (default in local development), queries resolve to validated fixtures in `frontend/lib/mocks/index.ts`.
-- Schema Guard: Responses are verified at runtime via Zod schemas (`frontend/lib/schemas.ts`) enforcing ISO-8601 UTC formats and enumeration bounds.
-- Endpoints consumed:
-  - `GET /api/v1/meta` — Engine verification and profile detection.
-  - `GET /api/v1/stations?status=all` — Station metadata with measurement freshness status.
-  - `GET /api/v1/aqi/cpcb-index` — Rolling CPCB AQI values.
-  - `GET /api/v1/alerts` — Real-time telemetry, health, and spike alerts.
+- Fallback Fixtures: When `NEXT_PUBLIC_USE_MOCKS` is enabled (default in local development), queries resolve to validated fixtures in `frontend/lib/mocks/index.ts` containing genuine published datasets from the analytical lake (zero synthetic placeholders).
+- Schema Guard: Responses are verified at runtime via Zod schemas (`frontend/lib/schemas.ts`) enforcing ISO-8601 UTC formats, enumeration bounds, and automatic station ID string coercion.
+- Complete 9 Endpoints Consumed:
+  - `GET /api/v1/meta` (`loadMeta`) — Engine verification and profile detection.
+  - `GET /api/v1/stations` (`loadStations`) — Station metadata with measurement freshness status and coordinates.
+  - `GET /api/v1/aqi/cpcb-index` (`loadIndexes`) — 24-hour rolling CPCB AQI values and category ratings.
+  - `GET /api/v1/analytics/trends/hourly` (`loadHourlyTrends`) — Diurnal 24-hour trends with UTC and IST mapping.
+  - `GET /api/v1/alerts` (`loadAlerts`) — Real-time telemetry, health, and spike alerts.
+  - `GET /api/v1/analytics/station-statistics` (`loadStationStatistics`) — Multi-metric summary statistics and rankings.
+  - `GET /api/v1/analytics/trends/daily` (`loadDailyTrends`) — Day-of-week relative aggregation and variance profiles.
+  - `GET /api/v1/analytics/weather-correlation` (`loadWeatherCorrelation`) — Air-weather equijoins and Pearson $r$ correlations.
+  - `GET /api/v1/audit/quality-report` (`loadQualityReport`) — Multi-stage record reconciliation and audit diagnostics.

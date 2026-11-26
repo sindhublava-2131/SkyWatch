@@ -1,10 +1,10 @@
 ---
 last_mapped_commit: 6b4cc6dd01b87e70230978c94258f457e4b5fcb4
-last_mapped_at: 2026-11-24
+last_mapped_at: 2026-11-26
 ---
 # Codebase Structure
 
-**Analysis Date:** 2026-11-24
+**Analysis Date:** 2026-11-26
 
 ## Directory Layout
 
@@ -26,6 +26,11 @@ SkyWatch/
 │   ├── raw/                         # Raw verbatim API responses and _manifest.csv
 │   └── synthetic/                   # Benchmark synthetic datasets (1x, 10x, 100x)
 ├── docs/                            # Project specifications and architecture documentation
+│   ├── images/                      # Dashboard UI screenshots and architectural assets
+│   │   ├── dashboard_alerts.png
+│   │   ├── dashboard_analytics.png
+│   │   ├── dashboard_overview.png
+│   │   └── dashboard_stations.png
 │   ├── architecture/
 │   ├── plans/
 │   └── specs/
@@ -69,10 +74,12 @@ SkyWatch/
 │   ├── lab.env                      # Rollback lab profile (Hadoop 3.2.2, Pig 0.17.0, Spark 3.2.2, Java 8)
 │   └── modern.env                   # Modern profile (Hadoop 3.3.6, Pig 0.18.0, Spark 3.5.0, Java 17/8)
 ├── scripts/                         # Shell wrappers and automation scripts
+│   ├── capture_screenshots.sh       # Automated headless browser screenshot capture
 │   ├── cron_collect.sh              # Scheduled cron ingestion runner with flock
 │   ├── generate_sample_fixtures.py  # Generator for test fixtures
 │   ├── make_sample_weather.py       # Helper script for weather samples
 │   ├── make_synthetic.py            # Deterministic synthetic scale dataset generator
+│   ├── rollback_drill.sh            # Dual-profile modern vs lab parity drill runner
 │   ├── run_pig.sh                   # Profile-aware Pig execution wrapper
 │   ├── run_spark.sh                 # Profile-aware Spark execution wrapper
 │   └── use_profile.sh               # Active profile switcher and environment validator
@@ -116,7 +123,7 @@ SkyWatch/
 │           ├── raw_manifest.py      # Raw payload writing and _manifest.csv append
 │           ├── storage.py           # Atomic CSV writes and directory operations
 │           └── watermark.py         # Incremental ingestion high-water mark state machine
-└── tests/                           # Complete test suite (111 passing tests)
+└── tests/                           # Complete test suite (119 passing tests)
     ├── contract/                    # Schema and data contract regression tests
     ├── fixtures/                    # Frozen responses and golden reference CSVs
     ├── integration/                 # End-to-end pipeline and benchmark tests
